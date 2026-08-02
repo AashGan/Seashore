@@ -51,9 +51,12 @@
 ## Visualization
 
 - [ ] Add Summary creation script 
-- [ ] Add MoviePy automatic Edito
+- [ ] Add MoviePy automatic Editor
 ## Scripts
 
+### H5 Dataset Creation
+
+- [ ] Dataset Creation Script 
 ### Training
 
 - [ ] Develop a torch lightning train script
@@ -63,3 +66,15 @@
 ### Evaluation
 
 - [ ] Add evaluation script for inference 
+- [ ] Add F1 score evaluation 
+- [ ] Add other metrics from the literature 
+
+
+### Testing
+- [ ] Start implementing Pytests for different functions
+     - [ ] Evaluation Functions
+     - [ ] Dataloaders
+     - [ ] Model Predictions 
+     - [ ] Feature Extractors
+     - [ ] 
+

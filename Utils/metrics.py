@@ -1,38 +1,10 @@
 import numpy as np
+from dicts import dataset_metadata_paths
 from scipy.stats import spearmanr,kendalltau
-
-#--------------------------------------------Post-Process-Utils----------------------------------------------------------------
-
-def knapSack(W, wt, val, n):
-	""" Maximize the value that a knapsack of capacity W can hold. You can either put the item or discard it, there is
-	no concept of putting some part of item in the knapsack.
-
-	:param int W: Maximum capacity -in frames- of the knapsack.
-	:param list[int] wt: The weights (lengths -in frames-) of each video shot.
-	:param list[float] val: The values (importance scores) of each video shot.
-	:param int n: The number of the shots.
-	:return: A list containing the indices of the selected shots.
-	"""
-	K = [[0 for _ in range(W + 1)] for _ in range(n + 1)]
-
-	# Build table K[][] in bottom up manner
-	for i in range(n + 1):
-		for w in range(W + 1):
-			if i == 0 or w == 0:
-				K[i][w] = 0
-			elif wt[i - 1] <= w:
-				K[i][w] = max(val[i - 1] + K[i - 1][w - wt[i - 1]], K[i - 1][w])
-			else:
-				K[i][w] = K[i - 1][w]
-
-	selected = []
-	w = W
-	for i in range(n, 0, -1):
-		if K[i][w] != K[i - 1][w]:
-			selected.insert(0, i - 1)
-			w -= wt[i - 1]
-
-	return selected
+from sklearn.metrics import f1_score
+from post_process import knapSack, upsample
+#--------------------------------------------Summary Generation-----------------------------------------------------------------------------
+    
 
 def generate_summary_single(shot_bound,score,n_frames,positions,return_shot_info = False):
     frame_init_scores = score
@@ -83,7 +55,7 @@ def eval_spearman(preds:np.ndarray,gt:np.ndarray):
 
 
 
-def correlation_metric_wrappers(preds,gt,aggregation,post_process=False,video_list = None):
+def correlation_metric_wrappers(preds,gt,dataset_list:list,aggregation,post_process=False,video_list = None):
       """
       A wrapper for evaluation of video summarization, specifically for multiple possible evaluation strategies.
 
@@ -94,3 +66,66 @@ def correlation_metric_wrappers(preds,gt,aggregation,post_process=False,video_li
             assert video_list is not None, "Pass the video list to post-process"
             
 
+
+def process_and_eval(preds,gts,video_key_list,dataset_list):
+      """ 
+      Function to process the model predictions before evaluating the Spearman Correlation Coefficient
+      """
+      assert len(preds) == len(gts) == len(video_key_list) == len(dataset_list), (
+    "preds, gt, video_key_list, and dataset_list must all have the same length.")
+    #TODO: Test to see if these return everything as intended
+      shot_bounds = [ shot_bound
+                     for i in range(len(video_key_list))
+                     for video_key in video_key_list[i]
+                     for shot_bound in dataset_metadata_paths[dataset_list[i]][video_key]["change_points"]
+                    ] 
+      n_frames_videos = [ n_frames
+                     for i in range(len(video_key_list))
+                     for video_key in video_key_list[i]
+                     for n_frames in dataset_metadata_paths[dataset_list[i]][video_key]["n_frames"]
+                    ]
+
+
+      all_positions = [     positions
+                     for i in range(len(video_key_list))
+                     for video_key in video_key_list[i]
+                     for positions in dataset_metadata_paths[dataset_list[i]][video_key]["positions"]
+                    ]
+      assert len(preds) == len(gts) == len(shot_bounds) == len(n_frames_videos), (
+          "preds, gt, video_key_list, and dataset_list must all have the same length.")
+    # Process the summary predictions 
+      all_processed_outputs = [generate_summary_single(shot_bound,score,n_frames,positions) for shot_bound,score,n_frames,positions in zip(shot_bounds, preds, n_frames_videos, all_positions)]
+    # Compute the Kendall and Spearman Correlation 
+
+      all_kendalls = [np.mean([eval_kendall(processed_preds,gt_i) for gt_i in gt])for processed_preds,gt in zip(all_processed_outputs,gts)]
+      all_spearmans = [np.mean([eval_spearman(processed_preds,gt_i) for gt_i in gt])for processed_preds,gt in zip(all_processed_outputs,gts)]
+
+      return np.mean(all_kendalls), np.mean(all_spearmans)
+
+
+def eval_direct(preds,gts,video_key_list,dataset_list):
+     assert len(preds) == len(gts) == len(video_key_list) == len(dataset_list), (
+         "preds, gt, video_key_list, and dataset_list must all have the same length.")
+     n_frames_videos = [ n_frames
+                          for i in range(len(video_key_list))
+                          for video_key in video_key_list[i]
+                          for n_frames in dataset_metadata_paths[dataset_list[i]][video_key]["n_frames"]
+                         ]
+     
+     
+     all_positions = [   positions
+                          for i in range(len(video_key_list))
+                          for video_key in video_key_list[i]
+                          for positions in dataset_metadata_paths[dataset_list[i]][video_key]["positions"]
+                         ]
+     all_processed_outputs = [upsample(score,n_frames,positions) for score,n_frames,positions in zip(preds, n_frames_videos, all_positions)]
+
+     all_kendalls = [np.mean([eval_kendall(processed_preds,gt_i) for gt_i in gt])for processed_preds,gt in zip(all_processed_outputs,gts)]
+     all_spearmans = [np.mean([eval_spearman(processed_preds,gt_i) for gt_i in gt])for processed_preds,gt in zip(all_processed_outputs,gts)]
+
+     return np.mean(all_kendalls), np.mean(all_spearmans)
+
+
+def eval_average(preds,gts): 
+    
+    all_kendalls
