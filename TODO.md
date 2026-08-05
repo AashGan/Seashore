@@ -78,3 +78,11 @@
      - [ ] Feature Extractors
      - [ ] 
 
+
+# Task List: Mathieu
+
+- [ ] Implement the paper: CLIP-IT!
+    - [ ] Model architecture (as torch module)
+    - [ ] Loss functions (as separate function)
+- [ ] Add batch collate function for sequential inputs (basically something that pads in the all the input vectors to the same length)
+- [ ] Go through Otani's paper: Rethinking evaluation in Video Summarization
