@@ -1,1 +1,4 @@
 *.h5
+*.pyc
+_pycache_
+*.mat

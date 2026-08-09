@@ -5,12 +5,11 @@ import torch
 from transformers import AutoImageProcessor, AutoModel
 
 def video_sampler(video_path,fps=2):
-  """ An FFMPEG based uniform frame sampler using FFMPEG
+  """ An FFMPEG based uniform frame sampler using 
   args:
   video_path: path to video (str)
   fps: frame rate to sample from in the video (int)
   returns: bitwise array of frames
-  Note: copy the array, since it is not mutable
   """
   probe = ffmpeg.probe(video_path)
   video_stream = next((stream for stream in probe['streams']
@@ -61,7 +60,7 @@ class TorchVideoExtractor():
       embeddings = []
       for i in range(0,len(images),self.batch_size):
         batch = images[i:i+self.batch_size].copy()
-        inputs = self.preprocessor(torch.from_numpy(batch.transpose(0,3,1,2))) # Assumes that
+        inputs = self.preprocessor(torch.from_numpy(batch.transpose(0,3,1,2))) 
         with torch.no_grad():
           outputs = self.model(inputs.to(self.device))
         if self.key is not None:
@@ -83,7 +82,7 @@ class HFVideoExtractor():
       self.batch_size = batch_size
       self.pooler_att = pooler_att
       self.fps = fps
-      assert self.pooler_att in ['pooler_output','vision_pooler_output']
+      assert self.pooler_att in ['pooler_output','vision_pooler_output'], "Specify the pooler"
       self.device = device
     def return_images(self,video_path):
       images = video_sampler(video_path,fps=self.fps)

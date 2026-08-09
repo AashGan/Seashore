@@ -1,8 +1,8 @@
 import numpy as np
-from dicts import dataset_metadata_paths
+from .dicts import dataset_metadata_paths
 from scipy.stats import spearmanr,kendalltau
 from sklearn.metrics import f1_score
-from post_process import knapSack, upsample
+from .post_process import knapSack, upsample
 #--------------------------------------------Summary Generation-----------------------------------------------------------------------------
     
 
@@ -128,4 +128,6 @@ def eval_direct(preds,gts,video_key_list,dataset_list):
 
 def eval_average(preds,gts): 
     
-    all_kendalls
+    all_kendalls = [eval_kendall(pred,gt) for pred,gt in zip(preds,gts)]
+    all_spearmans = [eval_spearman(pred,gt) for pred,gt in zip(preds,gts)]
+    return np.mean(all_kendalls), np.mean(all_spearmans)

@@ -1,5 +1,5 @@
 import numpy as np 
-
+import hdf5storage 
 def knapSack(W, wt, val, n):
 	""" Maximize the value that a knapsack of capacity W can hold. You can either put the item or discard it, there is
 	no concept of putting some part of item in the knapsack.
@@ -48,3 +48,24 @@ def upsample(score,positions,n_frames):
         else:
             frame_scores[pos_left:pos_right] = frame_init_scores[i]
     return frame_init_scores
+# TODO: Move this metadata to a Pure h5 file 
+def load_tvsum_mat(filename='ydata-tvsum50.mat'):
+    data = hdf5storage.loadmat(filename, variable_names=['tvsum50'])
+    data = data['tvsum50'].ravel()
+    
+    data_list = []
+    for item in data:
+        video, category, title, length, nframes, user_anno, gt_score = item
+        
+        item_dict = {
+        'video': video[0, 0],
+        'category': category[0, 0],
+        'title': title[0, 0],
+        'length': length[0, 0],
+        'nframes': nframes[0, 0],
+        'user_anno': user_anno,
+        'gt_score': gt_score
+        }
+        
+        data_list.append((item_dict))
+    return data_list
