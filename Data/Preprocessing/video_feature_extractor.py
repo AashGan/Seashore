@@ -3,7 +3,9 @@ import ffmpeg
 import numpy as np
 import torch
 from transformers import AutoImageProcessor, AutoModel
+import cv2
 
+#TODO: Let this return the 
 def video_sampler(video_path,fps=2):
   """ An FFMPEG based uniform frame sampler using 
   args:
@@ -25,6 +27,16 @@ def video_sampler(video_path,fps=2):
             )
   images = np.frombuffer(out,np.uint8).reshape([-1,height,width,3])
   return images
+
+def return_frame_picks(video_path,fps=2):
+  """ 
+  Returns stuff for our positions variable 
+  """
+  cap = cv2.VideoCapture(video_path)
+  orig_fps = round(cap.get(cv2.CAP_PROP_FPS))
+  total_frames = cap.get(cv2.CAP_PROP_FRAME_COUNT)
+  return np.arange(0,total_frames,orig_fps//fps) 
+
 
 class TorchVideoExtractor():
     """
