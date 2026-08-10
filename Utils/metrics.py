@@ -3,6 +3,7 @@ from .dicts import dataset_metadata_paths
 from scipy.stats import spearmanr,kendalltau
 from sklearn.metrics import f1_score
 from .post_process import knapSack, upsample
+import h5py
 #--------------------------------------------Summary Generation-----------------------------------------------------------------------------
     
 
@@ -54,16 +55,6 @@ def eval_spearman(preds:np.ndarray,gt:np.ndarray):
     return spearmanr(preds,gt)[0]
 
 
-
-def correlation_metric_wrappers(preds,gt,dataset_list:list,aggregation,post_process=False,video_list = None):
-      """
-      A wrapper for evaluation of video summarization, specifically for multiple possible evaluation strategies.
-
-      """
-      
-
-      if post_process:
-            assert video_list is not None, "Pass the video list to post-process"
             
 
 
@@ -86,7 +77,8 @@ def process_and_eval(preds,gts,video_key_list,dataset_list):
                     ]
 
 
-      all_positions = [     positions
+      all_positions = [
+          positions
                      for i in range(len(video_key_list))
                      for video_key in video_key_list[i]
                      for positions in dataset_metadata_paths[dataset_list[i]][video_key]["positions"]
@@ -102,6 +94,22 @@ def process_and_eval(preds,gts,video_key_list,dataset_list):
 
       return np.mean(all_kendalls), np.mean(all_spearmans)
 
+def process_and_eval_spearman_single(pred,gt,video_index):
+      """ 
+      Function to process the model predictions before evaluating the Spearman Correlation Coefficient
+      """
+      dataset, video_key = video_index.split('/')
+      shot_bound= dataset_metadata_paths[dataset][video_key]["change_points"]
+      n_frames= dataset_metadata_paths[dataset][video_key]["n_frames"]
+      positions = dataset_metadata_paths[dataset][video_key]["positions"]
+    
+      processed_output = generate_summary_single(shot_bound,pred,n_frames,positions)
+    # Compute the Kendall and Spearman Correlation 
+
+      all_kendalls = [np.mean([eval_kendall(processed_preds,gt_i) for gt_i in gt])for processed_preds,gt in zip(all_processed_outputs,gts)]
+      all_spearmans = [np.mean([eval_spearman(processed_preds,gt_i) for gt_i in gt])for processed_preds,gt in zip(all_processed_outputs,gts)]
+
+      return np.mean(all_kendalls), np.mean(all_spearmans)
 
 def eval_direct(preds,gts,video_key_list,dataset_list):
      assert len(preds) == len(gts) == len(video_key_list) == len(dataset_list), (
@@ -131,3 +139,50 @@ def eval_average(preds,gts):
     all_kendalls = [eval_kendall(pred,gt) for pred,gt in zip(preds,gts)]
     all_spearmans = [eval_spearman(pred,gt) for pred,gt in zip(preds,gts)]
     return np.mean(all_kendalls), np.mean(all_spearmans)
+
+
+# A function that routes different evaluation based on the inputs 
+
+def post_process_preds(pred,metadata,post_process):
+    if post_process =='none':
+        return pred
+    positions = metadata['positions']
+    n_frames = metadata['n_frames']
+    shot_bound = metadata['shot_bounds']
+    if post_process == "upsample":
+        return upsample(pred,positions,n_frames)
+    if post_process == "summary_gen":
+        return generate_summary_single(shot_bound,pred,n_frames,positions)
+
+def process_and_route_single(pred:np.ndarray,gt:np.ndarray,metadata:dict,ground_truth_data:dict,eval_type:str,post_process:str = "upsample",metric='corr'):
+    pred = post_process_preds(pred,metadata,post_process) # Does the post-procesing based on type
+    if metric =="corr":
+        # Returns both Kendall and Spearman Correlation
+        return evaluate_correlation(pred,gt,ground_truth_data,eval_type)
+    if metric =="f1":
+        return evaluate_f1(pred,ground_truth_data,eval_type)
+
+
+def evaluate_correlation(pred,gt,ground_truth_data,eval_type):
+    if eval_type == 'gt':
+        return {"kendall":eval_kendall(pred,gt),"spearman":eval_spearman(pred,gt)}
+    if eval_type == "user_score":
+        user_score = ground_truth_data['user_score']
+        # We do list comprenehsion since tvsum has multiple user scores 
+        all_kendalls = [eval_kendall(pred,gt_i) for gt_i in user_score]
+        all_spearmans = [eval_spearman(pred,gt_i) for gt_i in user_score]
+
+        return {"kendall":np.mean(all_kendalls),"spearman":np.mean(all_spearmans)}
+    if eval_type == "user_summary":
+        user_score = ground_truth_data['user_summary']
+        # We do list comprenehsion since all of them have multiple summaries
+        all_kendalls = [eval_kendall(pred,gt_i) for gt_i in user_score]
+        all_spearmans = [eval_spearman(pred,gt_i) for gt_i in user_score]
+
+        return {"kendall":np.mean(all_kendalls),"spearman":np.mean(all_spearmans)}
+
+    
+#TODO: implement f1, which takes the eval_type to have the "max" and "best" eval thing from past research
+def evaluate_f1(pred,ground_truth_data,eval_type):
+    raise NotImplementedError
+        
