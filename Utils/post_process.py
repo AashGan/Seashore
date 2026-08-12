@@ -47,7 +47,7 @@ def upsample(score,positions,n_frames):
             frame_scores[pos_left:pos_right] = 0
         else:
             frame_scores[pos_left:pos_right] = frame_init_scores[i]
-    return frame_init_scores
+    return frame_scores
 # TODO: Move this metadata to a Pure h5 file 
 def load_tvsum_mat(filename='ydata-tvsum50.mat'):
     data = hdf5storage.loadmat(filename, variable_names=['tvsum50'])

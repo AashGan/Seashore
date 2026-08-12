@@ -4,6 +4,7 @@ from scipy.stats import spearmanr,kendalltau
 from sklearn.metrics import f1_score
 from .post_process import knapSack, upsample
 import h5py
+import torch
 #--------------------------------------------Summary Generation-----------------------------------------------------------------------------
     
 
@@ -144,22 +145,25 @@ def eval_average(preds,gts):
 # A function that routes different evaluation based on the inputs 
 
 def post_process_preds(pred,metadata,post_process):
-    if post_process =='none':
-        return pred
     positions = metadata['positions']
     n_frames = metadata['n_frames']
     shot_bound = metadata['shot_bounds']
-    if post_process == "upsample":
+    if post_process =='none':
+        return pred
+    elif post_process == "upsample":
         return upsample(pred,positions,n_frames)
-    if post_process == "summary_gen":
+    elif post_process == "summary_gen":
         return generate_summary_single(shot_bound,pred,n_frames,positions)
 
-def process_and_route_single(pred:np.ndarray,gt:np.ndarray,metadata:dict,ground_truth_data:dict,eval_type:str,post_process:str = "upsample",metric='corr'):
+def process_and_route_single(pred:torch.tensor,gt:torch.tensor,metadata:dict,ground_truth_data:dict,eval_type:str,post_process:str = "upsample",metric='corr'):
+    pred = pred.to('cpu').squeeze().numpy()
+    gt = gt.to('cpu').squeeze().numpy()
     pred = post_process_preds(pred,metadata,post_process) # Does the post-procesing based on type
     if metric =="corr":
         # Returns both Kendall and Spearman Correlation
         return evaluate_correlation(pred,gt,ground_truth_data,eval_type)
     if metric =="f1":
+        post_process = "summary_gen"
         return evaluate_f1(pred,ground_truth_data,eval_type)
 
 
