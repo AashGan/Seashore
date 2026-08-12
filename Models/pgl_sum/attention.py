@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 
-
+# SOURCE: https://github.com/MRHiSum/MR.HiSum/blob/main/networks/pgl_sum/ , as it enabled the use of the mask and variable batch size
 class SelfAttention(nn.Module):
     def __init__(self, input_size=1024, output_size=1024, freq=10000, heads=1, pos_enc=None):
         """ The basic (multi-head) Attention 'cell' containing the learnable parameters of Q, K and V
@@ -87,38 +87,52 @@ class SelfAttention(nn.Module):
         RP[:, 2*idx+1] = torch.cos(r_pos[:, 2*idx+1] / freq ** ((i[:, 2*idx+1] + j[:, 2*idx+1]) / d))
         return RP
 
-    def forward(self, x):
+    def forward(self, x, mask=None):
         """ Compute the weighted frame features, based on either the global or local (multi-head) attention mechanism.
 
-        :param torch.tensor x: Frame features with shape [T, input_size]
-        :return: A tuple of:
-                    y: Weighted features based on the attention weights, with shape [T, input_size]
-                    att_weights : The attention weights (before dropout), with shape [T, T]
+        :param torch.tensor x: Frame features with shape [BS, seq, dim]
+        
         """
+        bs = x.shape[0]
+        n = x.shape[1]  # sequence length
+        dim = x.shape[2]
+        dim_head = dim // self.heads
+
         outputs = []
         for head in range(self.heads):
             K = self.Wk[head](x)
             Q = self.Wq[head](x)
             V = self.Wv[head](x)
 
+            local_dim = V.shape[-1]
+
             # Q *= 0.06                       # scale factor VASNet
             # Q /= np.sqrt(self.output_size)  # scale factor (i.e 1 / sqrt(d_k) )
-            energies = torch.matmul(Q, K.transpose(1, 0))
+            # energies = torch.matmul(Q, K.transpose(1, 0))
+            energies = torch.matmul(Q, K.transpose(1,2))
+            # for batch training
             if self.pos_enc is not None:
                 if self.pos_enc == "absolute":
-                    AP = self.getAbsolutePosition(T=energies.shape[0])
+                    AP = self.getAbsolutePosition(T=energies.shape[2])
                     energies = energies + AP
                 elif self.pos_enc == "relative":
                     RP = self.getRelativePosition(T=energies.shape[0])
                     energies = energies + RP
 
+            if mask is not None:
+                mask2 = mask.unsqueeze(-1)
+                mask2_t = mask2.transpose(2,1)
+                attention_mask = torch.matmul(mask2.float(), mask2_t.float()).bool()
+                energies[~attention_mask] = -1e9 #float('-Inf')
+
             att_weights = self.softmax(energies)
             _att_weights = self.drop(att_weights)
-            y = torch.matmul(_att_weights, V)
+
+            y = torch.matmul(V.transpose(1,2), _att_weights).transpose(1,2)
 
             # Save the current head output
             outputs.append(y)
-        y = self.out(torch.cat(outputs, dim=1))
+        y = self.out(torch.cat(outputs, dim=2))
         return y, att_weights.clone()  # for now we don't deal with the weights (probably max or avg pooling)
 
 

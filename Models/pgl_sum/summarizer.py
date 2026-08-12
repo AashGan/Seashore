@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+
+# SOURCE: https://github.com/MRHiSum/MR.HiSum/blob/main/networks/pgl_sum/ , as it enabled the use of the mask and variable batch size
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -39,7 +41,7 @@ class MultiAttention(nn.Module):
             self.fusion = self.fusion.lower()
             assert self.fusion in self.permitted_fusions, f"Fusion method must be: {*self.permitted_fusions,}"
 
-    def forward(self, x):
+    def forward(self, x, mask=None):
         """ Compute the weighted frame features, based on the global and locals (multi-head) attention mechanisms.
 
         :param torch.Tensor x: Tensor with shape [T, input_size] containing the frame features.
@@ -47,34 +49,40 @@ class MultiAttention(nn.Module):
             weighted_value: Tensor with shape [T, input_size] containing the weighted frame features.
             attn_weights: Tensor with shape [T, T] containing the attention weights.
         """
-        weighted_value, attn_weights = self.attention(x)  # global attention
+        weighted_value, attn_weights = self.attention(x, mask)  # global attention
 
         if self.num_segments is not None and self.fusion is not None:
-            segment_size = math.ceil(x.shape[0] / self.num_segments)
-            for segment in range(self.num_segments):
+            B = x.shape[0]
+            segment_size = math.ceil(x.shape[1] / self.num_segments)
+            for segment in range(self.num_segments): # n_seg = 4
                 left_pos = segment * segment_size
                 right_pos = (segment + 1) * segment_size
-                local_x = x[left_pos:right_pos]
-                weighted_local_value, attn_local_weights = self.local_attention[segment](local_x)  # local attentions
+                local_x = x[:, left_pos:right_pos]
+                local_mask = None
+                if mask is not None: 
+                    local_mask = mask[:, left_pos:right_pos]
+                weighted_local_value, attn_local_weights = self.local_attention[segment](local_x, local_mask)  # local attentions
 
                 # Normalize the features vectors
-                weighted_value[left_pos:right_pos] = F.normalize(weighted_value[left_pos:right_pos].clone(), p=2, dim=1)
-                weighted_local_value = F.normalize(weighted_local_value, p=2, dim=1)
+                weighted_value[left_pos:right_pos] = F.normalize(weighted_value[left_pos:right_pos].clone(), p=2, dim=2)
+                weighted_local_value = F.normalize(weighted_local_value, p=2, dim=2)
+
                 if self.fusion == "add":
-                    weighted_value[left_pos:right_pos] += weighted_local_value
+                    weighted_value[:, left_pos:right_pos] += weighted_local_value
                 elif self.fusion == "mult":
-                    weighted_value[left_pos:right_pos] *= weighted_local_value
+                    weighted_value[:, left_pos:right_pos] *= weighted_local_value
                 elif self.fusion == "avg":
-                    weighted_value[left_pos:right_pos] += weighted_local_value
-                    weighted_value[left_pos:right_pos] /= 2
+                    weighted_value[:, left_pos:right_pos] += weighted_local_value
+                    weighted_value[:, left_pos:right_pos] /= 2
                 elif self.fusion == "max":
-                    weighted_value[left_pos:right_pos] = torch.max(weighted_value[left_pos:right_pos].clone(),
+                    weighted_value[:, left_pos:right_pos] = torch.max(weighted_value[left_pos:right_pos].clone(),
                                                                    weighted_local_value)
 
         return weighted_value, attn_weights
 
 
 class PGL_SUM(nn.Module):
+    
     def __init__(self, input_size=1024, output_size=1024, freq=10000, pos_enc=None,
                  num_segments=None, heads=1, fusion=None):
         """ Class wrapping the PGL-SUM model; its key modules and parameters.
@@ -100,17 +108,16 @@ class PGL_SUM(nn.Module):
         self.relu = nn.ReLU()
         self.sigmoid = nn.Sigmoid()
 
-    def forward(self, frame_features):
-        """ Produce frames importance scores from the frame features, using the PGL-SUM model.
-
-        :param torch.Tensor frame_features: Tensor of shape [T, input_size] containing the frame features produced by
-        using the pool5 layer of GoogleNet.
-        :return: A tuple of:
-            y: Tensor with shape [1, T] containing the frames importance scores in [0, 1].
-            attn_weights: Tensor with shape [T, T] containing the attention weights.
+    def forward(self, frame_features, mask=None,return_att=False):
+        """ 
+        :param torch.Tensor frame_features: Tensor of shape [BS, N, input_dim] containing the frame features
         """
+        bs = frame_features.shape[0]
+        n = frame_features.shape[1]
+        dim = frame_features.shape[2]
+        
         residual = frame_features
-        weighted_value, attn_weights = self.attention(frame_features)
+        weighted_value, attn_weights = self.attention(frame_features, mask=mask)
         y = weighted_value + residual
         y = self.drop(y)
         y = self.norm_y(y)
@@ -123,9 +130,10 @@ class PGL_SUM(nn.Module):
 
         y = self.linear_2(y)
         y = self.sigmoid(y)
-        y = y.view(1, -1)
-
-        return y, attn_weights
+        y = y.view(bs, -1)
+        if return_att:
+            return y, attn_weights
+        return y
 
 
 if __name__ == '__main__':
