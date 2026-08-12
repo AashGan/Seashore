@@ -29,7 +29,9 @@ class MultiH5Loader (Dataset):
     dataset,video_index = data_point.split('/')
     features = self.dataset_dict[dataset][video_index]['features'][...]
     gtscore = self.dataset_dict[dataset][video_index]['gtscore'][...]
-    return features,gtscore,data_point # We return the data_name for the eval stuff
+
+
+    return {'features:':features,'gtscore':gtscore,'data_point': data_point} # We return the data_name for the eval stuff
   
 
 
