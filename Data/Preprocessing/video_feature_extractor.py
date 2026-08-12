@@ -5,38 +5,75 @@ import torch
 from transformers import AutoImageProcessor, AutoModel
 import cv2
 
-#TODO: Let this return the 
-def video_sampler(video_path,fps=2):
-  """ An FFMPEG based uniform frame sampler using 
-  args:
-  video_path: path to video (str)
-  fps: frame rate to sample from in the video (int)
-  returns: bitwise array of frames
-  """
-  probe = ffmpeg.probe(video_path)
-  video_stream = next((stream for stream in probe['streams']
-                             if stream['codec_type'] == 'video'), None)
-  width = int(video_stream['width'])
-  height = int(video_stream['height'])
-  cmd = (
-                ffmpeg.input(video_path).filter('fps', fps=fps)
-            )
-  out, _ = (
-                cmd.output('pipe:', format='rawvideo', pix_fmt='rgb24')
-                .run(capture_stdout=True, quiet=True)
-            )
-  images = np.frombuffer(out,np.uint8).reshape([-1,height,width,3])
-  return images
+def video_sampler_indices(video_path, target_fps):
+    """
+    Downsamples a video to a target FPS and returns the downsampled frames
+    and their original indices.
 
-def return_frame_picks(video_path,fps=2):
-  """ 
-  Returns stuff for our positions variable 
-  """
-  cap = cv2.VideoCapture(video_path)
-  orig_fps = round(cap.get(cv2.CAP_PROP_FPS))
-  total_frames = cap.get(cv2.CAP_PROP_FRAME_COUNT)
-  return np.arange(0,total_frames,orig_fps//fps) 
+    Args:
+        video_path (str): Path to the input video file.
+        target_fps (int): Desired frames per second for downsampling.
 
+    Returns:
+        tuple: A tuple containing:
+            - numpy.ndarray: Array of downsampled frames (dtype=uint8).
+            - list: List of original frame indices that were sampled.
+    """
+    cap = cv2.VideoCapture(video_path)
+
+    if not cap.isOpened():
+        print(f"Error: Could not open video {video_path}")
+        return None, None
+
+    original_fps = cap.get(cv2.CAP_PROP_FPS)
+    original_frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+
+    if original_fps == 0: # Handle case where original_fps might be zero
+        print(f"Error: Original FPS is zero for video {video_path}.")
+        cap.release()
+        return None, None
+
+    # Calculate the frame interval for downsampling
+    if target_fps > original_fps:
+        print(f"Warning: Target FPS ({target_fps}) is higher than original FPS ({original_fps}). No effective downsampling will occur.")
+        frame_interval = 1
+    elif target_fps <= 0:
+        print("Error: Target FPS must be positive.")
+        cap.release()
+        return None, None
+    else:
+        frame_interval = int(original_fps / target_fps)
+
+    target_frames = np.arange(0,original_frame_count,frame_interval).astype(int)
+
+    downsampled_frames = []
+    sampled_frame_indices = []
+    frame_number = 0
+
+
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        # Select frames based on the calculated interval
+        # Use a small epsilon for floating point comparison robustness
+        if frame_number in target_frames:
+            # cv2.read() already returns frames as numpy.ndarray with dtype=uint8
+            downsampled_frames.append(frame)
+            sampled_frame_indices.append(frame_number)
+
+        frame_number += 1
+
+
+    cap.release()
+
+    if downsampled_frames:
+        downsampled_frames_array = np.array(downsampled_frames)
+        return downsampled_frames_array, sampled_frame_indices
+    else:
+        print("No frames were downsampled or extracted.")
+        return None, None
 
 class TorchVideoExtractor():
     """
@@ -64,27 +101,31 @@ class TorchVideoExtractor():
       self.fps = fps
       self.key = key
     def return_images(self,video_path):
-      images = video_sampler(video_path,self.fps)
-      return images
+      images,indices = video_sampler_indices(video_path,self.fps)
+      return images,indices
     def process_and_return_embeddings(self,images):
       self.model.eval()
       self.model.to(self.device)
+      print("Moved Model to Device")
       embeddings = []
       for i in range(0,len(images),self.batch_size):
         batch = images[i:i+self.batch_size].copy()
-        inputs = self.preprocessor(torch.from_numpy(batch.transpose(0,3,1,2))) 
+        print("Extracted Batch")
+        inputs = self.preprocessor(torch.from_numpy(batch.transpose(0,3,1,2))) # Assumes that
+        print("Ran Preprocessing")
         with torch.no_grad():
           outputs = self.model(inputs.to(self.device))
+        print(f"Model ran sucessfully on batch{i}")
         if self.key is not None:
           embeddings.append(outputs[self.key].to('cpu').flatten(1).numpy())
         else:
           embeddings.append(outputs.to('cpu').flatten(1).squeeze().numpy())
       return embeddings
     def __call__(self,video_path):
-        images = self.return_images(video_path)
+        images,indices = self.return_images(video_path)
         print('Completed returning images from video')
         embeddings = self.process_and_return_embeddings(images)
-        return np.concatenate(embeddings,axis = 0)
+        return np.concatenate(embeddings,axis = 0),indices
     
 
 class HFVideoExtractor():
@@ -97,8 +138,8 @@ class HFVideoExtractor():
       assert self.pooler_att in ['pooler_output','vision_pooler_output'], "Specify the pooler"
       self.device = device
     def return_images(self,video_path):
-      images = video_sampler(video_path,fps=self.fps)
-      return images
+      images,indices = video_sampler_indices(video_path,self.fps)
+      return images,indices
     def process_and_return_embeddings(self,images):
       self.model.eval()
       self.model.to(self.device)
@@ -118,6 +159,6 @@ class HFVideoExtractor():
       return embedding_list
 
     def __call__(self,video_path):
-        images = self.return_images(video_path)
+        images,indices= self.return_images(video_path)
         embeddings = self.process_and_return_embeddings(images)
-        return np.concatenate(embeddings,axis = 0)
+        return np.concatenate(embeddings,axis = 0),indices
