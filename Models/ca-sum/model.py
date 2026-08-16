@@ -8,7 +8,26 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 import math
-from .transformer_models import getPositionEncoding
+
+def getPositionEncoding(seq_len, d, n=100000):
+    pe = torch.zeros(seq_len, d)    
+    # create position column   
+    k = torch.arange(0, seq_len).unsqueeze(1)  
+
+    # calc divisor for positional encoding 
+    div_term = torch.exp(                                 
+            torch.arange(0, d, 2) * -(math.log(n) / d)
+    )
+
+    # calc sine on even indices
+    pe[:, 0::2] = torch.sin(k * div_term)    
+
+    # calc cosine on odd indices   
+    pe[:, 1::2] = torch.cos(k * div_term)
+    pe = pe.unsqueeze(0)
+  
+    return pe
+
 
 class SelfAttention(nn.Module):
     def __init__(self, input_size=1024, output_size=1024, block_size=60):
@@ -98,7 +117,7 @@ class SelfAttention(nn.Module):
 
 #MODIFIED TO ADD POSITIONAL-ENCODING
 class CA_SUM(nn.Module):
-    def __init__(self, input_size=1024, output_size=1024, block_size=60,positional_encoding=True ):
+    def __init__(self, input_size=1024, output_size=1024, block_size=60,positional_encoding=False ):
         """ Class wrapping the CA-SUM model; its key modules and parameters.
         
         :param int input_size: The expected input feature size.
@@ -155,3 +174,11 @@ class CA_SUM(nn.Module):
     
 
 
+if __name__ == '__main__':
+    pass
+    """Uncomment for a quick proof of concept
+    model = CA_SUM(input_size=256, output_size=128, block_size=30).cuda()
+    _input = torch.randn(500, 256).cuda()  # [seq_len, hidden_size]
+    output, weights = model(_input)
+    print(f"Output shape: {output.shape}\tattention shape: {weights.shape}")
+    """
