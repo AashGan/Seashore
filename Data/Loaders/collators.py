@@ -30,7 +30,7 @@ def batch_collate_fn(batch):
     data_points = [x["data_point"] for x in batch]
     lengths = torch.tensor([len(x) for x in gtscore])
     features = pad_sequence(features, batch_first=True, padding_value=0)
-    gtscore = pad_sequence(gtscore, batch_first=True, padding_value=-1)
+    gtscore = pad_sequence(gtscore, batch_first=True, padding_value=-1) # This is padded with -1 for safety
     mask = torch.arange(gtscore.size(1))[None, :]< lengths[:, None]
     
 
