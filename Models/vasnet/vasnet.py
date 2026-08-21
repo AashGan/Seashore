@@ -86,7 +86,7 @@ class VASNet(nn.Module):
         self.layer_norm_ka = LayerNorm(self.ka.out_features)
 
 
-    def forward(self, x, mask=None):
+    def forward(self, x, mask=None,return_att=False):
         bs = x.shape[0]
         m = x.shape[2] # Feature size
 
@@ -105,7 +105,9 @@ class VASNet(nn.Module):
         y = self.kd(y)
         y = self.sig(y)
         y = y.view(bs, -1)
-        return y, att_weights_
+        if return_att:
+            return y, att_weights_
+        return y
 
 
 
