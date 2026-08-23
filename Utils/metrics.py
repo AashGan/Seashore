@@ -44,7 +44,21 @@ def generate_summary_single(shot_bound,score,n_frames,positions,return_shot_info
     if return_shot_info:
         return shot_lengths, shot_imp_scores,selected,summary
     return summary
-
+# Binarization from Source: https://github.com/IDT-ITI/SD-VSum/blob/main/model/utils/evaluation_metrics.py
+def binarize_top_percent(score, top_percent=0.15):
+    """
+    Selects the top_percent frames of the video to be included in the summary, by binarizing the top percentage of scores into a binary indicator array.
+    :param numpy.ndarray score: 1D array of scores for frames.
+    :param float top_percent: Percentage of frames to be included in the summary. Defaults to 0.15.
+    :return numpy.ndarray: Binary array with values 1.0 for the top_percent highest scores and 0.0 otherwise.
+    """
+    n = score.size
+    k = int((top_percent * n))
+    sorted_descending = np.sort(score)[::-1]
+    threshold_val = sorted_descending[k]
+    # Create binary array (values ≥ threshold become 1)
+    binary_score = (score >= threshold_val).astype(np.float32)
+    return binary_score
 #--------------------------------------------Statistical-tests---------------------------------------------------------------
 
 def eval_kendall(preds:np.ndarray,gt:np.ndarray):
@@ -90,7 +104,7 @@ def process_and_route_single(pred:torch.tensor,gt:torch.tensor,metadata:dict,gro
         # Returns both Kendall and Spearman Correlation
         return evaluate_correlation(pred,gt,ground_truth_data,eval_type)
     if metric =="f1":
-        post_process = "summary_gen"
+        assert post_process in ['summary_gen','binarize_top_k'], "For F1 evaluation Post processing must be summary_gen, or binarize_top_k"
         return evaluate_f1(pred,ground_truth_data,eval_type)
 
 
