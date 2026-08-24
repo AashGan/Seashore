@@ -154,6 +154,8 @@ def post_process_preds(pred,metadata,post_process):
         return upsample(pred,positions,n_frames)
     elif post_process == "summary_gen":
         return generate_summary_single(shot_bound,pred,n_frames,positions)
+    else:
+        raise ValueError('provide an eval type: [none,upsample,summary_gen]')
 
 def process_and_route_single(pred:torch.tensor,gt:torch.tensor,metadata:dict,ground_truth_data:dict,eval_type:str,post_process:str = "upsample",metric='corr'):
     pred = pred.to('cpu').squeeze().numpy()
@@ -162,10 +164,12 @@ def process_and_route_single(pred:torch.tensor,gt:torch.tensor,metadata:dict,gro
     if metric =="corr":
         # Returns both Kendall and Spearman Correlation
         return evaluate_correlation(pred,gt,ground_truth_data,eval_type)
-    if metric =="f1":
+    elif metric =="f1":
         post_process = "summary_gen"
         return evaluate_f1(pred,ground_truth_data,eval_type)
-
+    else:
+        raise ValueError('provide an eval type: [corr,f1]')
+    
 
 def evaluate_correlation(pred,gt,ground_truth_data,eval_type):
     if eval_type == 'gt':
@@ -177,13 +181,15 @@ def evaluate_correlation(pred,gt,ground_truth_data,eval_type):
         all_spearmans = [eval_spearman(pred,gt_i) for gt_i in user_score]
 
         return {"kendall":np.mean(all_kendalls),"spearman":np.mean(all_spearmans)}
-    if eval_type == "user_summary":
+    elif eval_type == "user_summary":
         user_score = ground_truth_data['user_summary']
         # We do list comprenehsion since all of them have multiple summaries
         all_kendalls = [eval_kendall(pred,gt_i) for gt_i in user_score]
         all_spearmans = [eval_spearman(pred,gt_i) for gt_i in user_score]
 
         return {"kendall":np.mean(all_kendalls),"spearman":np.mean(all_spearmans)}
+    else:
+        raise ValueError('provide an eval type: [gt,user_score,user_summary]')
 
     
 #TODO: implement f1, which takes the eval_type to have the "max" and "best" eval thing from past research
