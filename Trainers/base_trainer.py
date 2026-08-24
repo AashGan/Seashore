@@ -4,7 +4,7 @@ import wandb
 import h5py
 from Utils import process_and_route_single
 import torch.nn as nn
-import torch.nn.Functional as F
+import torch.nn.functional as F
 
 from collections.abc import Callable
 class MetadataStore:

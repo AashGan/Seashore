@@ -7,12 +7,13 @@ import os
 base_file_path = 'Data/h5Datasets'
 #TODO: Implement multi-modal data-loaders
 class MultiH5Loader (Dataset):
-  def __init__(self,split_file,split_name,cross_val_idx,feature_name,included_dataset):
+  def __init__(self,split_file,split_name,cross_val_idx,feature_name):
     with open(split_file,'r') as f:
       self.split_file = json.load(f)
     self.data_points = self.split_file[cross_val_idx][split_name]
+    self.included_dataset = list({sample.split('/',1)[0] for sample in self.data_points})
     self.feature_name = feature_name
-    self._create_data_dict(included_dataset)
+    self._create_data_dict(self.included_dataset)
 
   def __len__(self):
     return len(self.data_points)

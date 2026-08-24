@@ -40,13 +40,13 @@ def run_feature_extractor_base(dataset_name,video_base_path,save_name):
                 video_path = os.path.join(video_base_path,f'{video}.mp4')
                 features,positions = torch_extract(video_path)
                 shot_bounds = metadata_file[video]['shot_bounds'][...] # TODO: Mathieu, adding another source for shot boundaries here could be nice
-                n_frames =metadata_file[video]['n_frames'][()]
+                n_frames = metadata_file[video]['n_frames'][()]
                 user_summary = metadata_file[video]['user_summary'][...]
                 user_score = np.mean(user_summary,axis=0)
                 gt = user_score[positions]
                 assert len(features) == len(gt)
-                f.create_dataset(f'{features}/features',data=features)
-                f.create_dataset(f'{features}/gtscore',data=features)
+                f.create_dataset(f'{video}/features',data=features)
+                f.create_dataset(f'{video}/gtscore',data=gt)
                 f.create_dataset(f'{video}/shot_bounds',data=shot_bounds)
                 f.create_dataset(f'{video}/positions',data=positions)
                 f.create_dataset(f'{video}/n_frames',data=n_frames)
@@ -65,8 +65,8 @@ def run_feature_extractor_base(dataset_name,video_base_path,save_name):
                     user_score = metadata_file[video]['user_score'][...]
                     gt = user_score.mean(axis=0)[positions]
                     assert len(features) == len(gt)
-                    f.create_dataset(f'{features}/features',data=features)
-                    f.create_dataset(f'{features}/gtscore',data=features)
+                    f.create_dataset(f'{video}/features',data=features)
+                    f.create_dataset(f'{video}/gtscore',data=gt)
                     f.create_dataset(f'{video}/shot_bounds',data=shot_bounds)
                     f.create_dataset(f'{video}/positions',data=positions)
                     f.create_dataset(f'{video}/n_frames',data=n_frames)
@@ -102,8 +102,8 @@ def run_feature_extractor_hf(dataset_name,video_base_path,save_name):
                 user_score = np.mean(user_summary,axis=0)
                 gt = user_score[positions]
                 assert len(features) == len(gt)
-                f.create_dataset(f'{features}/features',data=features)
-                f.create_dataset(f'{features}/gtscore',data=features)
+                f.create_dataset(f'{video}/features',data=features)
+                f.create_dataset(f'{video}/gtscore',data=features)
                 f.create_dataset(f'{video}/shot_bounds',data=shot_bounds)
                 f.create_dataset(f'{video}/positions',data=positions)
                 f.create_dataset(f'{video}/n_frames',data=n_frames)
@@ -122,8 +122,8 @@ def run_feature_extractor_hf(dataset_name,video_base_path,save_name):
                     user_score = metadata_file[video]['user_score'][...]
                     gt = user_score.mean(axis=0)[positions]
                     assert len(features) == len(gt)
-                    f.create_dataset(f'{features}/features',data=features)
-                    f.create_dataset(f'{features}/gtscore',data=features)
+                    f.create_dataset(f'{video}/features',data=features)
+                    f.create_dataset(f'{video}/gtscore',data=features)
                     f.create_dataset(f'{video}/shot_bounds',data=shot_bounds)
                     f.create_dataset(f'{video}/positions',data=positions)
                     f.create_dataset(f'{video}/n_frames',data=n_frames)

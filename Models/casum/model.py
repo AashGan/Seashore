@@ -146,7 +146,7 @@ class CA_SUM(nn.Module):
             attn_weights: Tensor with shape [T, T] containing the attention weights.
         """
         
-        seq_len = frame_features.shape[0]
+        seq_len = frame_features.shape[1]
         if self.pos_enc:
             x_pos = getPositionEncoding(seq_len,self.hidden_size)
             frame_features = frame_features + x_pos.to(frame_features.device)

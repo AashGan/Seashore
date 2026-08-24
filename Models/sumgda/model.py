@@ -1,5 +1,28 @@
 import torch.nn as nn
 import torch
+import math
+# Altered to include masking for batch size > 1
+
+
+def getPositionEncoding(seq_len, d, n=100000):
+    pe = torch.zeros(seq_len, d)    
+    # create position column   
+    k = torch.arange(0, seq_len).unsqueeze(1)  
+
+    # calc divisor for positional encoding 
+    div_term = torch.exp(                                 
+            torch.arange(0, d, 2) * -(math.log(n) / d)
+    )
+
+    # calc sine on even indices
+    pe[:, 0::2] = torch.sin(k * div_term)    
+
+    # calc cosine on odd indices   
+    pe[:, 1::2] = torch.cos(k * div_term)
+    pe = pe.unsqueeze(0)
+  
+    return pe
+
 
 class DiverseSelfAttention(nn.Module):
 
@@ -19,7 +42,9 @@ class DiverseSelfAttention(nn.Module):
 
 
 
-    def forward(self, x):
+    def forward(self, x,mask = None ):
+        """ Added masking for attention.
+        """
         n = x.shape[0]  # sequence length
         
         K = self.K(x)  # ENC (n x m) => (n x H) H= hidden size
@@ -43,7 +68,7 @@ class SUM_GDA(nn.Module):
     def __init__(self,input_size = 1024,mode = 'Unsupervised',positional_encoding=True):
         super(SUM_GDA,self).__init__()
         self.hidden_size = input_size
-        self.attention = DiverseSelfAttention()
+        self.attention = DiverseSelfAttention(input_size=input_size)
         self.linear_1 = nn.Linear(in_features=input_size, out_features=input_size)
         self.embedder = nn.Linear(in_features = self.linear_1.out_features,out_features = self.linear_1.out_features)
         self.linear_2 = nn.Linear(in_features=self.linear_1.out_features, out_features=1)
@@ -56,7 +81,7 @@ class SUM_GDA(nn.Module):
         self.pos_enc = positional_encoding
     def forward(self,x):
         if self.pos_enc:
-            seq_len = x.shape[0]
+            seq_len = x.shape[1] # Changed as I want all the models to be batch size compatible. 
             x_pos = getPositionEncoding(seq_len,self.hidden_size)
             x = x + x_pos.to(x.device)
         if len(x.shape)>2:

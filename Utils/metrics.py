@@ -44,7 +44,21 @@ def generate_summary_single(shot_bound,score,n_frames,positions,return_shot_info
     if return_shot_info:
         return shot_lengths, shot_imp_scores,selected,summary
     return summary
-
+# Binarization from Source: https://github.com/IDT-ITI/SD-VSum/blob/main/model/utils/evaluation_metrics.py
+def binarize_top_percent(score, top_percent=0.15):
+    """
+    Selects the top_percent frames of the video to be included in the summary, by binarizing the top percentage of scores into a binary indicator array.
+    :param numpy.ndarray score: 1D array of scores for frames.
+    :param float top_percent: Percentage of frames to be included in the summary. Defaults to 0.15.
+    :return numpy.ndarray: Binary array with values 1.0 for the top_percent highest scores and 0.0 otherwise.
+    """
+    n = score.size
+    k = int((top_percent * n))
+    sorted_descending = np.sort(score)[::-1]
+    threshold_val = sorted_descending[k]
+    # Create binary array (values ≥ threshold become 1)
+    binary_score = (score >= threshold_val).astype(np.float32)
+    return binary_score
 #--------------------------------------------Statistical-tests---------------------------------------------------------------
 
 def eval_kendall(preds:np.ndarray,gt:np.ndarray):
@@ -59,80 +73,7 @@ def eval_spearman(preds:np.ndarray,gt:np.ndarray):
             
 
 
-def process_and_eval(preds,gts,video_key_list,dataset_list):
-      """ 
-      Function to process the model predictions before evaluating the Spearman Correlation Coefficient
-      """
-      assert len(preds) == len(gts) == len(video_key_list) == len(dataset_list), (
-    "preds, gt, video_key_list, and dataset_list must all have the same length.")
-    #TODO: Test to see if these return everything as intended
-      shot_bounds = [ shot_bound
-                     for i in range(len(video_key_list))
-                     for video_key in video_key_list[i]
-                     for shot_bound in dataset_metadata_paths[dataset_list[i]][video_key]["change_points"]
-                    ] 
-      n_frames_videos = [ n_frames
-                     for i in range(len(video_key_list))
-                     for video_key in video_key_list[i]
-                     for n_frames in dataset_metadata_paths[dataset_list[i]][video_key]["n_frames"]
-                    ]
 
-
-      all_positions = [
-          positions
-                     for i in range(len(video_key_list))
-                     for video_key in video_key_list[i]
-                     for positions in dataset_metadata_paths[dataset_list[i]][video_key]["positions"]
-                    ]
-      assert len(preds) == len(gts) == len(shot_bounds) == len(n_frames_videos), (
-          "preds, gt, video_key_list, and dataset_list must all have the same length.")
-    # Process the summary predictions 
-      all_processed_outputs = [generate_summary_single(shot_bound,score,n_frames,positions) for shot_bound,score,n_frames,positions in zip(shot_bounds, preds, n_frames_videos, all_positions)]
-    # Compute the Kendall and Spearman Correlation 
-
-      all_kendalls = [np.mean([eval_kendall(processed_preds,gt_i) for gt_i in gt])for processed_preds,gt in zip(all_processed_outputs,gts)]
-      all_spearmans = [np.mean([eval_spearman(processed_preds,gt_i) for gt_i in gt])for processed_preds,gt in zip(all_processed_outputs,gts)]
-
-      return np.mean(all_kendalls), np.mean(all_spearmans)
-
-def process_and_eval_spearman_single(pred,gt,video_index):
-      """ 
-      Function to process the model predictions before evaluating the Spearman Correlation Coefficient
-      """
-      dataset, video_key = video_index.split('/')
-      shot_bound= dataset_metadata_paths[dataset][video_key]["change_points"]
-      n_frames= dataset_metadata_paths[dataset][video_key]["n_frames"]
-      positions = dataset_metadata_paths[dataset][video_key]["positions"]
-    
-      processed_output = generate_summary_single(shot_bound,pred,n_frames,positions)
-    # Compute the Kendall and Spearman Correlation 
-
-      all_kendalls = [np.mean([eval_kendall(processed_preds,gt_i) for gt_i in gt])for processed_preds,gt in zip(all_processed_outputs,gts)]
-      all_spearmans = [np.mean([eval_spearman(processed_preds,gt_i) for gt_i in gt])for processed_preds,gt in zip(all_processed_outputs,gts)]
-
-      return np.mean(all_kendalls), np.mean(all_spearmans)
-
-def eval_direct(preds,gts,video_key_list,dataset_list):
-     assert len(preds) == len(gts) == len(video_key_list) == len(dataset_list), (
-         "preds, gt, video_key_list, and dataset_list must all have the same length.")
-     n_frames_videos = [ n_frames
-                          for i in range(len(video_key_list))
-                          for video_key in video_key_list[i]
-                          for n_frames in dataset_metadata_paths[dataset_list[i]][video_key]["n_frames"]
-                         ]
-     
-     
-     all_positions = [   positions
-                          for i in range(len(video_key_list))
-                          for video_key in video_key_list[i]
-                          for positions in dataset_metadata_paths[dataset_list[i]][video_key]["positions"]
-                         ]
-     all_processed_outputs = [upsample(score,n_frames,positions) for score,n_frames,positions in zip(preds, n_frames_videos, all_positions)]
-
-     all_kendalls = [np.mean([eval_kendall(processed_preds,gt_i) for gt_i in gt])for processed_preds,gt in zip(all_processed_outputs,gts)]
-     all_spearmans = [np.mean([eval_spearman(processed_preds,gt_i) for gt_i in gt])for processed_preds,gt in zip(all_processed_outputs,gts)]
-
-     return np.mean(all_kendalls), np.mean(all_spearmans)
 
 
 def eval_average(preds,gts): 
@@ -164,8 +105,12 @@ def process_and_route_single(pred:torch.tensor,gt:torch.tensor,metadata:dict,gro
     if metric =="corr":
         # Returns both Kendall and Spearman Correlation
         return evaluate_correlation(pred,gt,ground_truth_data,eval_type)
+<<<<<<< HEAD
+
+=======
     elif metric =="f1":
-        post_process = "summary_gen"
+        assert post_process in ['summary_gen','binarize_top_k'], "For F1 evaluation Post processing must be summary_gen, or binarize_top_k"
+>>>>>>> refs/remotes/origin/main
         return evaluate_f1(pred,ground_truth_data,eval_type)
     else:
         raise ValueError('provide an eval type: [corr,f1]')
