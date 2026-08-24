@@ -6,7 +6,7 @@ from Utils import process_and_route_single
 import torch.nn as nn
 import torch.nn.Functional as F
 
-
+from collections.abc import Callable
 class MetadataStore:
     def __init__(self, datasets:list|dict):
         # The dataset dict paths should also allow you to override and add custom h5's incase the h5's deviate (different shot boundaries,fps sampling etc)
