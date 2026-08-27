@@ -1,5 +1,6 @@
 from Trainers.base_trainer import BaseTrainer
 from Models.model_links import model_dict
+from Models.losses.loss_functions import loss_dict
 import torch
 import json
 from Data.Datasets import MultiH5Loader
@@ -64,6 +65,7 @@ def run_train_base(config):
     # Evaluation configs
     eval_type = eval_configs['eval_type']
     eval_criterion = eval_configs['eval_criterion']
+    criterion = loss_dict[model_configs['loss_function']]
     post_process_dict = eval_configs['post_process']
     log_metric = eval_configs['log_metric']
     # Meta configs
@@ -78,7 +80,7 @@ def run_train_base(config):
         train_dataloader =  DataLoader(train_dataset,shuffle=True,collate_fn=batch_collate_fn,batch_size = batch_size)
         val_dataloader =  DataLoader(val_dataset,shuffle=False,batch_size = 1)
         #TODO: Adjust the lightning module to have the learning rate 
-        lightning_module = BaseTrainer(model,train_dataset.included_datasets,eval_type,post_process_dict)
+        lightning_module = BaseTrainer(model,train_dataset.included_datasets,eval_type,post_process_dict,criterion,eval_criterion)
         checkpoint = ModelCheckpoint(
                                         monitor=eval_criterion,
                                         mode="max",
@@ -120,5 +122,6 @@ def run_train_base(config):
 
 
 
-
+if __name__ == "__main__":
+    config = 'Configs/pglsum_tvsum_googlenet.json'
         
