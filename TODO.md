@@ -86,3 +86,12 @@
     - [ ] Loss functions (as separate function)
 - [ ] Add batch collate function for sequential inputs (basically something that pads in the all the input vectors to the same length)
 - [ ] Go through Otani's paper: Rethinking evaluation in Video Summarization
+- [ ] Loss function
+  - [ ] Consolidate the loss functions found across the literature
+  - [ ] Create a class that composes the multiple losses allowing them to be weighed (when possible)
+  - [ ] Implement the functions and add them to Models/losses/loss_function.py
+  - [ ] Mark the ones that are too complex
+- [ ] Captioners
+    - [ ] Read through three paper (SD-VSUM, LLMVS, PDL ) and describe how they caption the videos (if the core details are mentioned)
+    - [ ] Implement the captioners (extending with SmolVLM)
+    - [ ] Mark the ones which can't be tested due to lack of details or compute issues 
