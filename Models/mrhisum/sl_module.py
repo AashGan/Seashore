@@ -2,8 +2,8 @@ import torch
 import torch.nn as nn
 
 
-from transformer import Transformer
-from score_net import ScoreFCN
+from .transformer import Transformer
+from .score_net import ScoreFCN
 # Source: https://github.com/MRHiSum/MR.HiSum/blob/main/networks/sl_module/sl_module.py
 # There seems to be an issue in their original code, they never pass the mask to the actual model, so I don't know if they ever use it
 class SL_module(nn.Module):

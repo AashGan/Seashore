@@ -12,6 +12,7 @@ class MultiH5Loader (Dataset):
       self.split_file = json.load(f)
     self.data_points = self.split_file[cross_val_idx][split_name]
     self.included_dataset = list({sample.split('/',1)[0] for sample in self.data_points})
+    print(self.included_dataset)
     self.feature_name = feature_name
     self._create_data_dict(self.included_dataset)
 
@@ -32,7 +33,7 @@ class MultiH5Loader (Dataset):
     gtscore = self.dataset_dict[dataset][video_index]['gtscore'][...]
 
 
-    return {'features:':features,'gtscore':gtscore,'data_point': data_point} # We return the data_name for the eval stuff
+    return {'features':features,'gtscore':gtscore,'data_point': data_point} # We return the data_name for the eval stuff
   
 
 

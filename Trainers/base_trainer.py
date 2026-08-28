@@ -60,7 +60,7 @@ class MetadataStore:
 
 class BaseTrainer(pl.LightningModule):
 
-    def __init__(self,model:nn.Module,datasets:list|dict,eval_type:dict[str],post_process_dict:dict[str],criterion:Callable = F.mse_loss,eval_criterion='corr'):
+    def __init__(self,model:nn.Module,datasets:list|dict,eval_type:dict[str],post_process_dict:dict[str],lr:float=1e-5,criterion:Callable = F.mse_loss,eval_criterion='corr'):
         super().__init__()
         self.model = model
         self.eval_type = eval_type # Stores how each dataset has to be evaluated 
@@ -70,6 +70,7 @@ class BaseTrainer(pl.LightningModule):
         self.post_process_dict = post_process_dict
         #TODO, add validation keys to exclude for hyper-parameter logging
         self.criterion = criterion
+        self.lr = lr
 
     def training_step(self, batch, batch_idx):
         x, y= batch['features'],batch['gtscore']
@@ -104,4 +105,9 @@ class BaseTrainer(pl.LightningModule):
             self.log('f1',f1)
 
     def on_train_end(self):
-        self.metadata_stores.close()
+        pass
+        # self.metadata_stores.close()
+
+    def configure_optimizers(self):
+            optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)
+            return optimizer
