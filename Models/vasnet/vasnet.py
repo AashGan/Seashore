@@ -69,7 +69,7 @@ class VASNet(nn.Module):
     def __init__(self, hidden_dim=1024):
         super(VASNet, self).__init__()
 
-        self.m = 1024 # cnn features size
+        self.m = hidden_dim # cnn features size
         self.hidden_size = hidden_dim
 
         self.att = SelfAttention(input_size=self.m, output_size=self.hidden_size)
