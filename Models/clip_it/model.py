@@ -13,8 +13,8 @@ class CLIP_IT(nn.Module):
         self,
         n_frame_features: int,
         n_text_features: int,
-        n_head_language: int,
-        n_head_transformer: int,
+        n_head_language: int = 4,
+        n_head_transformer: int = 8,
         n_transformer_layers: int = 6,
         transformer_droput: float = 0.1,
     ) -> None:
