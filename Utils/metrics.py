@@ -105,12 +105,8 @@ def process_and_route_single(pred:torch.tensor,gt:torch.tensor,metadata:dict,gro
     if metric =="corr":
         # Returns both Kendall and Spearman Correlation
         return evaluate_correlation(pred,gt,ground_truth_data,eval_type)
-<<<<<<< HEAD
-
-=======
     elif metric =="f1":
         assert post_process in ['summary_gen','binarize_top_k'], "For F1 evaluation Post processing must be summary_gen, or binarize_top_k"
->>>>>>> refs/remotes/origin/main
         return evaluate_f1(pred,ground_truth_data,eval_type)
     else:
         raise ValueError('provide an eval type: [corr,f1]')
