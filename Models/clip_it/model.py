@@ -8,6 +8,7 @@ from .language_guided_attention import LanguageGuidedAttention
 class CLIP_IT(nn.Module):
     lg_attention: LanguageGuidedAttention
     scoring_transformer: FrameScoringTransformer
+    feature_convolution: nn.Conv2d
 
     def __init__(
         self,
@@ -29,6 +30,7 @@ class CLIP_IT(nn.Module):
             n_transformer_layers,
             transformer_droput,
         )
+        self.feature_convolution = nn.Conv2d(n_frame_features, n_frame_features, 1)
 
     def forward(
         self,
@@ -47,7 +49,7 @@ class CLIP_IT(nn.Module):
             return_features: whether or not to include the final features in the output
 
         Returns:
-            Score tensor of shape [n_batches, n_frames], and final scoring features if return_features is True.
+            Score tensor of shape [n_batches, n_frames], and convoluted features if return_features is True.
 
         """
 
@@ -75,6 +77,7 @@ class CLIP_IT(nn.Module):
 
         if return_features:
             score, features = output
-            return score, features
+            conv_features = self.feature_convolution.forward(features)
+            return score, conv_features
         else:
             return output
