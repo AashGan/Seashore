@@ -43,14 +43,14 @@
 - [ ] Run the scripts for the shot-boundary detection
 
 ### Loaders
-- [ ] Integrate existing loader to the repo
+- [X] Integrate existing loader to the repo
 - [ ] Integrate text-based data-loader
 - [ ] Integrate multi-modal loaders (assuming keys)
 
 
 ## Visualization
 
-- [ ] Add Summary creation script 
+- [X] Add Summary creation script 
 - [ ] Add MoviePy automatic Editor
 ## Scripts
 
