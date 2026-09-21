@@ -66,7 +66,7 @@ class VTSum_BLIP_TT(nn.Module):
             tsum_labels, padding='longest',
             truncation=True, max_length=self.max_text_length,
             return_tensors="pt").to(video_embeddings.device)
-
+      # This is probably a padding step. 
       text.input_ids[:, 0] = self.tokenizer.bos_token_id
 
       decoder_targets = text.input_ids.masked_fill(text.input_ids == self.tokenizer.pad_token_id, -100)

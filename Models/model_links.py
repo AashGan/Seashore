@@ -7,5 +7,7 @@ from .pgl_sum.summarizer import PGL_SUM
 from .vasnet.vasnet import VASNet
 from .sumgda.model import SUM_GDA
 from .mrhisum.sl_module import SL_module
-
-model_dict = {'casum':CA_SUM,'ctv_raw':ctv_functional,'mars':MARs,'pgl_sum':PGL_SUM,'vasnet':VASNet,'sl-module':SL_module,'sumgda':SUM_GDA,'csta':set_model}
+from .videoxum.model import VTSum_BLIP_TT,VTSum_BLIP_TT_CA
+model_dict = {'casum':CA_SUM,'ctv_raw':ctv_functional,'mars':MARs,'pgl_sum':PGL_SUM,'vasnet':VASNet,
+              'sl-module':SL_module,'sumgda':SUM_GDA,'csta':set_model,'vtsum_blip_tt':VTSum_BLIP_TT,
+              'vtsum_blip_tt_ca':VTSum_BLIP_TT_CA}
