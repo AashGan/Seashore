@@ -58,3 +58,38 @@ class SingleH5Loader(Dataset):
     features = self.dataset_file[video_index]['features'][...]
     gtscore = self.dataset_file[video_index]['gtscore'][...]
     return features,gtscore
+
+
+class MultiModelh5Loader(Dataset):
+  """ Multi-Modal h5-loader, we assume a custom name assigned to the h5 file
+  Alongside this, we can assume any kind of features included, the feature name can be included in the included_keys arg
+  """
+  def __init__(self,split_file,split_name,cross_val_idx,file_name,included_keys):
+    with open(split_file,'r') as f:
+          self.split_file = json.load(f)
+    self.data_points = self.split_file[cross_val_idx][split_name]
+    self.included_dataset = list({sample.split('/',1)[0] for sample in self.data_points})
+    self.file_name = file_name
+    self._create_data_dict(self.included_dataset)
+    self.included_keys = included_keys
+
+
+  def __len__(self):
+      return len(self.data_points)
+  
+  def _create_data_dict(self,included_datasets):
+      self.dataset_dict = {}
+      for dataset in included_datasets:
+        data_paths = os.path.join(base_file_path,f'{self.file_name}',f'{self.file_name}_{dataset}.h5')
+        self.dataset_dict[dataset]= h5py.File(data_paths,'r')
+
+  def __getitem__(self,idx):
+    data_point = self.data_points[idx]
+    dataset,video_index = data_point.split('/')
+    # Construct the output dictionary here
+    output_dict = {}
+    output_dict['gtscore'] = self.dataset_dict[dataset][video_index]['gtscore'][...]
+    output_dict['data_point'] = data_point
+    for key in self.included_keys:
+      output_dict[key] = self.dataset_dict[dataset][video_index][key][...]
+    return output_dict
