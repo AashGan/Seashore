@@ -34,4 +34,39 @@ def batch_collate_fn(batch):
     mask = torch.arange(gtscore.size(1))[None, :]< lengths[:, None]
     
 
-    return {"features":features,"gtscore": gtscore,"mask": mask,"data_points" : data_points}
+    return {"features":torch.tensor(features),"gtscore": torch.tensor(gtscore),"mask": mask,"data_points" : data_points}
+
+
+def batch_text_visual(batch):
+    """
+    Similar to the above function, but it pads visual and textual features
+    """
+
+    visual_features = [torch.from_numpy(x["visual_features"]) for x in batch]
+    textual_features = [torch.from_numpy(x["textual_features"]) for x in batch]
+    data_points = [x["data_point"] for x in batch]
+    lengths = torch.tensor([len(x) for x in gtscore])
+    features = pad_sequence(features, batch_first=True, padding_value=0)
+    gtscore = pad_sequence(gtscore, batch_first=True, padding_value=-1) # This is padded with -1 for safety
+    mask = torch.arange(gtscore.size(1))[None, :]< lengths[:, None]
+
+    return {"visual_features":torch.tensor(visual_features), "textual_features": torch.tensor(textual_features)
+            ,"gtscore": gtscore,"mask": mask,"data_points" : data_points}
+
+
+def batch_text_sum_visual(batch):
+    """
+    Similar to the above function, but it pads visual and textual features
+    """
+
+    visual_features = [torch.from_numpy(x["visual_features"]) for x in batch]
+    textual_features = [(x["tsum_labels"]) for x in batch]
+    data_points = torch.tensor([x["data_point"] for x in batch])
+    lengths = torch.tensor([len(x) for x in gtscore])
+    features = pad_sequence(features, batch_first=True, padding_value=0)
+    gtscore = pad_sequence(gtscore, batch_first=True, padding_value=-1) # This is padded with -1 for safety
+    mask = torch.arange(gtscore.size(1))[None, :]< lengths[:, None]
+
+    return {"visual_features":torch.tensor(visual_features), "text_labels": textual_features
+            ,"gtscore": gtscore,"mask": mask,"data_points" : data_points}
+    
