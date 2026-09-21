@@ -4,8 +4,8 @@
 
 
 ### UniModal
-- [ ] PGLSum
-- [ ] VasNet
+- [X] PGLSum
+- [X] VasNet
 - [ ] Generic Transformer
 
 ### MultiModal
@@ -28,9 +28,9 @@
 - [ ] Migrate datasets (based on repo) to specifc 
 ### Pre Processing
 
-- [ ] Creation of H5 Datasets
- - [ ] TVSUM
- - [ ] SumMe
+- [] Creation of H5 Datasets
+ - [X] TVSUM
+ - [X] SumMe
  - [ ] VideoXUM
 - [ ] Integration of additional dataset
     - [ ] MrHiSum
