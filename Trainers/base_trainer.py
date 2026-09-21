@@ -60,7 +60,9 @@ class MetadataStore:
 
 class BaseTrainer(pl.LightningModule):
 
-    def __init__(self,model:nn.Module,datasets:list|dict,eval_type:dict[str],post_process_dict:dict[str],lr:float=1e-5,criterion:Callable = F.mse_loss,eval_criterion='corr'):
+    def __init__(self,model:nn.Module,datasets:list|dict,eval_type:dict[str],
+                 post_process_dict:dict[str],lr:float=1e-5,criterion:Callable = F.mse_loss,
+                 eval_criterion='corr'):
         super().__init__()
         self.model = model
         self.eval_type = eval_type # Stores how each dataset has to be evaluated 

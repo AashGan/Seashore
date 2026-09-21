@@ -4,19 +4,25 @@
 
 
 ### UniModal
+<<<<<<< HEAD
 - [X] PGLSum
 - [X] VasNet
 - [ ] Generic Transformer
+=======
+- [x] PGLSum
+- [x] VasNet
+- [x] Generic Transformer
+>>>>>>> refs/remotes/origin/main
 
 ### MultiModal
-- [ ] CLIP-IT
+- [x] CLIP-IT
 
 ## Config
 
 ### Data
 
-- [ ] Data parameters
-- [ ] Batch size
+- [x] Data parameters
+- [x] Batch size
 
 ### Model
 - [ ] Function to generate config files 
@@ -28,12 +34,21 @@
 - [ ] Migrate datasets (based on repo) to specifc 
 ### Pre Processing
 
+<<<<<<< HEAD
 - [] Creation of H5 Datasets
  - [X] TVSUM
  - [X] SumMe
  - [ ] VideoXUM
 - [ ] Integration of additional dataset
     - [ ] MrHiSum
+=======
+- [x] Creation of H5 Datasets
+ - [x] TVSUM
+ - [x] SumMe
+ - [x] VideoXUM
+- [x] Integration of additional dataset
+    - [x] MrHiSum
+>>>>>>> refs/remotes/origin/main
     - [ ] TVSum's additional labels 
 - [ ] Unify the names of the ground truth for all the h5 files (gtscore)
 - [ ] Integrate additional shot-boundary detection algorithms
@@ -65,7 +80,7 @@
 
 ### Evaluation
 
-- [ ] Add evaluation script for inference 
+- [x] Add evaluation script for inference 
 - [ ] Add F1 score evaluation 
 - [ ] Add other metrics from the literature 
 
@@ -75,9 +90,17 @@
      - [ ] Evaluation Functions
      - [ ] Dataloaders
      - [ ] Model Predictions 
-     - [ ] Feature Extractors
-     - [ ] 
+     - [x] Feature Extractors
+     - [ ] text feature extractors 
 
+
+# FIX ALTER
+
+- [ ] LLMVS
+- [ ] PDL
+- [ ] Implement multi-modal dataset object
+- [ ] Implement multimodal dataloaders 
+- [ ] Research stuff
 
 # Task List: Mathieu
 
@@ -86,3 +109,23 @@
     - [ ] Loss functions (as separate function)
 - [ ] Add batch collate function for sequential inputs (basically something that pads in the all the input vectors to the same length)
 - [ ] Go through Otani's paper: Rethinking evaluation in Video Summarization
+- [x] Loss function
+  - [x] Consolidate the loss functions found across the literature
+  - [x] Create a class that composes the multiple losses allowing them to be weighed (when possible)
+  - [x] Implement the functions and add them to Models/losses/loss_function.py
+  - [x] Mark the ones that are too complex
+- [ ] Captioners
+    - [ ] Read through three paper (SD-VSUM, LLMVS, PDL ) and describe how they caption the videos (if the core details are mentioned)
+    - [ ] Implement the captioners (extending with SmolVLM)
+    - [ ] Mark the ones which can't be tested due to lack of details or compute issues 
+- [ ] Implement: SD-VSUM
+- [ ] Implement: MAAM
+    - [ ] Decide whether torch lightning,
+    - [ ] Done with loss class 
+
+
+# Misc TODOs:
+
+- [ ] Implement a motion level feature extractor. 
+- [ ] python script to run things with CLI
+- [ ] Test text batch collators
