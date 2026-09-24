@@ -95,6 +95,8 @@ def post_process_preds(pred,metadata,post_process):
         return upsample(pred,positions,n_frames)
     elif post_process == "summary_gen":
         return generate_summary_single(shot_bound,pred,n_frames,positions)
+    elif post_process == "binarize_top_k":
+        return binarize_top_percent(pred)
     else:
         raise ValueError('provide an eval type: [none,upsample,summary_gen]')
 

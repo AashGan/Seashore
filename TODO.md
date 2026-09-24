@@ -4,9 +4,15 @@
 
 
 ### UniModal
+<<<<<<< HEAD
+- [X] PGLSum
+- [X] VasNet
+- [ ] Generic Transformer
+=======
 - [x] PGLSum
 - [x] VasNet
 - [x] Generic Transformer
+>>>>>>> refs/remotes/origin/main
 
 ### MultiModal
 - [x] CLIP-IT
@@ -28,12 +34,21 @@
 - [ ] Migrate datasets (based on repo) to specifc 
 ### Pre Processing
 
+<<<<<<< HEAD
+- [] Creation of H5 Datasets
+ - [X] TVSUM
+ - [X] SumMe
+ - [ ] VideoXUM
+- [ ] Integration of additional dataset
+    - [ ] MrHiSum
+=======
 - [x] Creation of H5 Datasets
  - [x] TVSUM
  - [x] SumMe
  - [x] VideoXUM
 - [x] Integration of additional dataset
     - [x] MrHiSum
+>>>>>>> refs/remotes/origin/main
     - [ ] TVSum's additional labels 
 - [ ] Unify the names of the ground truth for all the h5 files (gtscore)
 - [ ] Integrate additional shot-boundary detection algorithms
@@ -43,14 +58,14 @@
 - [ ] Run the scripts for the shot-boundary detection
 
 ### Loaders
-- [ ] Integrate existing loader to the repo
+- [X] Integrate existing loader to the repo
 - [ ] Integrate text-based data-loader
 - [ ] Integrate multi-modal loaders (assuming keys)
 
 
 ## Visualization
 
-- [ ] Add Summary creation script 
+- [X] Add Summary creation script 
 - [ ] Add MoviePy automatic Editor
 ## Scripts
 
