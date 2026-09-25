@@ -19,3 +19,5 @@ Output only the new continuation of the description.
 """
 
 independent_frame_message = "Provide a detailed description of this frame in one or two sentences."
+
+generic_video_message = "Provide a detailed and concise description of this video. Do not repeat any details"

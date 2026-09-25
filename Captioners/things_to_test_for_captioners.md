@@ -9,3 +9,9 @@
   3.3.1 Image style frame-captioner (Image captioner describes each frame)
   3.3.2 Video captioner returning frame outputs
 4. Also have the LLMVs feature extraction ready 
+
+
+# Completed
+
+1. SmolVLM style full captioner works
+2. 

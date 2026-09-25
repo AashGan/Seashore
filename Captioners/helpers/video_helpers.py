@@ -38,6 +38,10 @@ def create_frame_prompt_and_return_message(processor,message ,images,sampled_sli
   return messages,input_len
 
 def encode_batch_image_and_message(processor, images, message):
+    """ Does Batched image inputs
+    """
+
+
     batch_messages = []
 
     for image in images:
@@ -52,10 +56,10 @@ def encode_batch_image_and_message(processor, images, message):
             },
         ]
 
-        batch_messages.append({
+        batch_messages.append([{
             "role": "user",
             "content": content,
-        })
+        }])
 
     batch = processor.apply_chat_template(
         batch_messages,
@@ -67,8 +71,19 @@ def encode_batch_image_and_message(processor, images, message):
     )
 
     input_lens = batch["attention_mask"].sum(dim=1)
-
     return batch, input_lens
+
+def whole_video_encode_and_message(processor,video_path,message):
+    content = [{'type':'video','video':video_path},{'type':'text','text':message}]
+    batch_message = [{"role":"user","content":content}]
+    messages = processor.apply_chat_template(batch_message,
+                                            tokenize=True,
+                                            return_dict=True,
+                                            return_tensors="pt",
+                                            padding=True,
+                                            add_generation_prompt=True,)
+    input_len = messages["input_ids"].shape[-1]
+    return messages,input_len
 
 def forward_and_decode(model,processed_message,input_len,processor,max_new_tokens = 75):
   with torch.no_grad():
@@ -79,6 +94,6 @@ def forward_and_decode(model,processed_message,input_len,processor,max_new_token
 def forward_and_batch_decode(model,processed_message,input_lens,processor,max_new_tokens = 75):
     with torch.no_grad():
         output_ids = model.generate(**processed_message.to(model.device),max_new_tokens = max_new_tokens)
-    batch_decode = processor.batch_decode(output_ids,skip_special_tokens = False)
+    batch_decode = processor.batch_decode(output_ids,skip_special_tokens = True)
     batch_decode = [decoded_output[input_len:-1] for decoded_output,input_len in zip(batch_decode,input_lens)]
     return batch_decode

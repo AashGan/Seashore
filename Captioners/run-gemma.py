@@ -1,8 +1,8 @@
 from transformers import AutoModelForMultimodalLM
 from transformers import AutoProcessor
 import os 
-from .captioner_utils import *
-from .messages import *
+from helpers.captioner_utils import *
+from helpers.messages import *
 import json
 from helpers.text_refiners import *
 def run_gemma(video_directory,model_name,save_directory,captioning_style='whole_video',truncation=5,refine=False):
@@ -21,14 +21,15 @@ def run_gemma(video_directory,model_name,save_directory,captioning_style='whole_
             os.makedirs(save_directory)
 
     if captioning_style == "whole_video":
+        caption_dict = {}
         for video_key,video_path in zip(video_save_names,all_videos):
-            generated_outputs = run_video_caption_gemma(video_path,model,processor,chunked_video_message,truncation)
+            generated_outputs = run_video_caption_gemma(video_path,model,processor,chunked_video_message,truncation,100)
             if refine:
                 refined_message,input_len = refine_caption(processor,generated_outputs)
                 generated_outputs = forward_and_decode(model, refined_message, input_len,processor,768)
-                
-            with open(os.path.join(save_directory,f'{video_key}.json'),'w') as f:
-                json.dump({'Captions':generated_outputs},f)
+            caption_dict['video_key'] = generated_outputs
+        with open(os.path.join(save_directory,f'{video_key}.json'),'w') as f:
+            json.dump({'Captions':caption_dict},f)
 
     if captioning_style == "indexed_frame_wise":
         for video_key,video_path in zip(video_save_names,all_videos):
