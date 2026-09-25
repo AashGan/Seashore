@@ -31,7 +31,7 @@ class SD_VSum(nn.Module):
         self.transformer = nn.Transformer(input_size, **transformer_kwargs)
 
 
-    def forward(self, frame_features, text_features):
+    def forward(self, frame_features, text_features,frame_mask = None,text_mask = None):
         """
         Produce frame importance scores using the SD_VSum model.
         :param torch.Tensor frame_features: Tensor of shape [N, input_size] containing frame features, where N is the number of frames.
@@ -39,14 +39,14 @@ class SD_VSum(nn.Module):
         :return torch.Tensor: Tensor of shape [1, N] containing the frame importance scores in [0, 1].
         """
         # ========= Cross-Attention =============
-        attended_values = self.cross_attention(frame_features, text_features)
+        attended_values = self.cross_attention(frame_features, text_features,frame_mask,text_mask)
         y = self.drop(attended_values)
         y = self.norm_y(y)
 
         # ========= Transformer =============
-        y = self.transformer(y, y)
+        y = self.transformer(y.squeeze(), y.squeeze())
         y = self.linear_layer(y)
         y = self.sigmoid(y)
-        y = y.view(1, -1)
+        #y = y.view(1, -1)
 
         return y

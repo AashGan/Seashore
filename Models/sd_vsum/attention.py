@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from einops import rearrange
+import math
 #Code Sourced from: https://github.com/IDT-ITI/SD-VSum/blob/main/model/layers/attention.py
 # Modified to include masking function taken from clip-it 
 
@@ -24,7 +25,7 @@ def combined_mask_construction(x,text_embed,frame_mask=None,text_mask=None):
     return mask
 
 class PositionalEncoding(nn.Module):
-    def __init__(self, dim, max_pos=512):
+    def __init__(self, dim, max_pos=1024):
         """
         Class implementing sinusoidal absolute positional encoding for sequence data.
         :param int dim: Dimensionality of the embeddings (should be even).
@@ -32,22 +33,29 @@ class PositionalEncoding(nn.Module):
         """
         super().__init__()
         pos = torch.arange(max_pos)
-        freq = torch.arange(dim // 2) / dim
-        freq = (freq * torch.tensor(10000).log()).exp()
-        x = rearrange(pos, 'L -> L 1') / freq
-        x = rearrange(x, 'L d -> L d 1')
-        pe = torch.cat((x.sin(), x.cos()), dim=-1)
-        self.pe = rearrange(pe, 'L d sc -> L (d sc)')
+        freq = torch.arange(0,dim,2)
 
-    def forward(self, n, *, device=torch.device('cuda')):
+        freq = (freq * torch.tensor(10000).log()/dim).exp()
+        x = pos[:, None] * freq[None, :]
+        pe = torch.cat((x.sin(),x.cos()),dim=-1,)
+
+        # [1, max_len, d_model]
+        self.register_buffer(
+            "pe",
+            pe.unsqueeze(0),
+        )
+
+    def forward(self, x):
         """
         Generates positional encoding for a sequence of given length.
         :param int n: The number of positions (i.e., sequence length) to generate encodings for.
         :param torch.device device: The device to move the positional encoding tensor to. Defaults to CUDA.
         :return torch.Tensor: A tensor of shape [n, dim] containing the positional encodings.
         """
-        enc = self.pe[:n]
-        return enc.to(device)
+        N = x.size(-2)
+        pe = self.pe[:, :N, :].unsqueeze(1)
+        # [1, N, D]
+        return x + pe
 
 
 class CrossAttention(nn.Module):
@@ -64,19 +72,17 @@ class CrossAttention(nn.Module):
 
         self.input_size = input_size
         self.output_size = output_size
-        self.heads = heads
+        self.num_heads = heads
+        self.head_dim = output_size // heads
         self.pos_enc = pos_enc
-
-        self.Wk, self.Wq, self.Wv = nn.ModuleList(), nn.ModuleList(), nn.ModuleList()
-        for _ in range(self.heads):
-            self.Wk.append(nn.Linear(in_features=text_size, out_features=output_size // heads, bias=False))
-            self.Wq.append(nn.Linear(in_features=input_size, out_features=output_size // heads, bias=False))
-            self.Wv.append(nn.Linear(in_features=text_size, out_features=output_size // heads, bias=False))
+        self.Wk = nn.Linear(in_features=text_size, out_features=output_size, bias=False)
+        self.Wq = nn.Linear(in_features=input_size, out_features=output_size, bias=False)
+        self.Wv = nn.Linear(in_features=text_size, out_features=output_size, bias=False)
         self.out = nn.Linear(in_features=output_size, out_features=input_size, bias=False)
 
         self.softmax = nn.Softmax(dim=-1)
 
-        self.drop = nn.Dropout(p=0.5)
+        self.drop = nn.Dropout(p=0.5) 
 
         if self.pos_enc:
             self.pe = PositionalEncoding(self.input_size, max_pos=4096)
@@ -86,27 +92,58 @@ class CrossAttention(nn.Module):
         Compute multi-head cross-attention between video and text inputs.
 
         :param torch.Tensor video_features: Input video features with shape [N, input_size], where N is the number of frames.
-        :param torch.Tensor text_features: Text feature tensor with shape [M, text_size], where M is the number of sentences.
+        :param torch.Tensor text_features: Text feature tensor with shape [Scripts, M, text_size], where M is the number of sentences.
         :return torch.Tensor: Output video features with shape [N, input_size] after attention.
+        This has been modified to include batched output for scripts 
         """
         outputs = []
-        mask = combined_mask_construction(video_features,text_features,video_mask,text_mask)
-        for head in range(self.heads):
+        B = 1 # We always assume a batch size of 1
+        N,D = video_features.shape
+        S,M,_ = text_features.shape
+        q = self.Wq(video_features)
+        # [B, N, D]
 
-            K = self.Wk[head](text_features)
-            Q = self.Wq[head](video_features)
-            V = self.Wv[head](text_features)
+        # Add script dimension.
+        k = self.Wk(text_features)
+        
+        v = self.Wv(text_features)
+       
+        q = q.view(
+            B, 1, N, self.num_heads, self.head_dim
+        ).permute(0, 1, 3, 2, 4)
+        k = k.view(
+            B, S, M, self.num_heads, self.head_dim
+        ).permute(0, 1, 3, 2, 4)
+        v = v.view(
+            B, S, M, self.num_heads, self.head_dim
+        ).permute(0, 1, 3, 2, 4)
 
-            energies = torch.matmul(Q, K.transpose(1, 0))
-            if mask is not None:
-                energies = energies.masked_fill(~mask,float("-inf"))
-            att_weights = self.softmax(energies)
-            _att_weights = self.drop(att_weights)
-            y = torch.matmul(_att_weights, V)
+        scores = torch.matmul(q,k.transpose(-2, -1))
+      
+        scores = scores / math.sqrt(self.head_dim)
+        if text_mask is not None:
+          mask = text_mask.unsqueeze(2).unsqueeze(2)
 
-            # Save the current head output
-            outputs.append(y)
-        y = self.out(torch.cat(outputs, dim=1))
+          scores = scores.masked_fill(
+              ~mask,
+              -1e9
+          )
+
+        attention = torch.softmax(scores,dim=-1)
+        attention = self.drop(attention)
+        output = torch.matmul(
+            attention,
+            v
+        )
+        output = output.permute(
+            0, 1, 3, 2, 4
+        )
+        output = output.reshape(
+            B,
+            S,
+            N,
+            D
+        )
         if self.pos_enc:
-            y+= self.pe(y.shape[0], device=y.device)
+            y= self.pe(output)
         return y
