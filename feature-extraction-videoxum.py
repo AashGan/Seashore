@@ -109,8 +109,13 @@ def run_feature_extractor_base(video_base_path,save_name):
 
 
 def run_feature_extractor_hf(video_base_path,save_name):
-    model= Siglip2VisionModel.from_pretrained("google/siglip2-base-patch16-naflex")
-    processor = AutoProcessor.from_pretrained("google/siglip2-base-patch16-naflex")
+    model = CLIPVisionModel.from_pretrained(
+    "openai/clip-vit-base-patch32"
+    )
+    processor = AutoProcessor.from_pretrained(
+        "openai/clip-vit-base-patch32"
+    )
+
     torch_extract = HFVideoExtractor(fps = 1,model = model,preprocessor = processor,
                                     pooler_att='pooler_output',batch_size = 500,device='cuda')
 
@@ -146,4 +151,5 @@ def run_feature_extractor_hf(video_base_path,save_name):
 if __name__ == "__main__":
     #generate_metadata_h5()
     #run_feature_extractor_hf(data_source,"siglip2_videoxum")
-    run_feature_extractor_base(data_source,"resnet_videoxum")
+    #run_feature_extractor_base(data_source,"resnet_videoxum")
+    run_feature_extractor_hf(data_source,"clip_videoxum")
