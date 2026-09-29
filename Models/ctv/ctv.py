@@ -125,11 +125,10 @@ class TransformerEncoder(nn.Module):
 
     def __init__(
             self, d_inp=1024, n_layers=4, n_head=1, d_k=64, d_v=64,
-            d_model=128, d_inner=512, dropout=0., num_patches=300):
+            d_model=128, d_inner=128, dropout=0., num_patches=300):
 
         super().__init__()
         self.n_layers = n_layers
-
         self.proj = nn.Linear(d_inp, d_model) 
         self.layer_stack = nn.ModuleList([
             EncoderLayer(d_model, d_inner, n_head, d_k, d_v, dropout=dropout)
@@ -146,6 +145,7 @@ class TransformerEncoder(nn.Module):
         )
     def forward(self, src_seq):
         # -- Forward
+
         enc_output = self.proj(src_seq)
         enc_output = self.layer_norm(enc_output)
         for i, enc_layer in enumerate(self.layer_stack):
@@ -155,12 +155,14 @@ class TransformerEncoder(nn.Module):
     
 
 class CTVWrapper(nn.Module):
-    def __init__(self, *args, **kwargs):
+    def __init__(self,transformer_kwargs = None, *args, **kwargs):
+        
         super().__init__(*args, **kwargs)
         self.ratio_s =  0
         self.ratio_k1 =  0.1
         self.alpha =  0.5
-        self.refinement_module = TransformerEncoder()
+        self.transformer_kwargs = transformer_kwargs if transformer_kwargs is not None else {}
+        self.refinement_module = TransformerEncoder(**self.transformer_kwargs)
         self.bce = nn.BCELoss()
         
     
@@ -215,7 +217,11 @@ class CTVWrapper(nn.Module):
 
 
 if __name__ == '__main__':
+    
     model = TransformerEncoder()
-    inp = torch.rand(1,300,1024)
-    enc_output = model(inp)
-    print(enc_output.shape)
+    inp = torch.rand(15,300,1024)
+    enc_output,scores = model(inp)
+    inp = torch.rand(15,300,2048)
+    transformer_kwargs = {"d_inp":2048, "n_layers":4, "n_head":4, "d_k":64, "d_v":64, "d_model":512, "d_inner": 512, "dropout":0., "num_patches":300}
+    model = CTVWrapper(transformer_kwargs = transformer_kwargs)
+    output,scores = model(inp)

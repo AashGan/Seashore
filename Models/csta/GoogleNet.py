@@ -275,6 +275,8 @@ class CSTA_GoogleNet(nn.Module):
 
     def forward(self, x):
         # Take the number of frames
+        if len(x.size) == 3:
+            x = x.expand(3,-1,-1).unsqueeze(0)
         n_frame = x.shape[2]
         
         # Linear projection if using CLS token as transformer ways
@@ -344,7 +346,7 @@ class CSTA_GoogleNet(nn.Module):
             elif self.Scale=='T_D':
                 scaling_factor = x_att.shape[0] * x_att.shape[1]
             else:
-                raise
+                raise NotImplementedError
             scaling_factor = scaling_factor ** 0.5
             x_att = x_att / scaling_factor
         elif self.Scale is None:

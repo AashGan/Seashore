@@ -381,7 +381,10 @@ class CSTA_MobileNet(nn.Module):
                 raise
 
     def forward(self, x):
+        if len(x.size) == 3:
+            x = x.expand(3,-1,-1).unsqueeze(0)
         n_frame = x.shape[2]
+        
         
         if self.Positional_encoding_way=='Transformer':
             x = self.Positional_encoding_embedding(x)

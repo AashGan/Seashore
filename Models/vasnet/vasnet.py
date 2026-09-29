@@ -37,10 +37,7 @@ class SelfAttention(nn.Module):
         
         # for batch training
         if mask is not None:
-            mask = mask.unsqueeze(-1)
-            mask_t = mask.transpose(2,1)
-            attention_mask = torch.matmul(mask.float(), mask_t.float()).bool()
-            logits[~attention_mask] = -1e9 #float('-Inf')
+            logits = logits.masked_fill_(~mask[:,None,:],-1e9)
 
         if self.ignore_itself:
             # Zero the diagonal activations (a distance of each frame with itself)
