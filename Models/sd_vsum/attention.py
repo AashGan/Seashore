@@ -100,13 +100,13 @@ class CrossAttention(nn.Module):
         B = 1 # We always assume a batch size of 1
         N,D = video_features.shape
         S,M,_ = text_features.shape
-        q = self.Wq(video_features)
+        q = self.Wq(video_features.squeeze())
         # [B, N, D]
 
         # Add script dimension.
-        k = self.Wk(text_features)
+        k = self.Wk(text_features.squeeze())
         
-        v = self.Wv(text_features)
+        v = self.Wv(text_features.squeeze())
        
         q = q.view(
             B, 1, N, self.num_heads, self.head_dim
