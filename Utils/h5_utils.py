@@ -25,3 +25,7 @@ def combine_h5(h5_1_file,h5_2_file,final_h5):
         for key in h5_2.keys():
             for sub_key in h5_2[key].keys():
                 h5_2.copy(sub_key, h5_out[key])
+
+def copy_h5(source_h5,dest_h5):
+    for key in source_h5.keys():
+        source_h5.copy(key,dest_h5)
