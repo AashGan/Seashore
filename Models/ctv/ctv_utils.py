@@ -7,6 +7,8 @@ import numpy as np
 ratio_s = 0
 ratio_k1 = 0.1 
 def ctv_functional(frame_features,use_unif=True):
+  """ This is a contrastive loss function with only features derived from the video
+  """
   norm_raw = F.normalize(frame_features,p=2,dim=-1)
   xy_raw = torch.einsum('bmc, bnc -> bmn', norm_raw, norm_raw)
   norm_proj = F.normalize(frame_features,p=2,dim=-1)
@@ -54,24 +56,25 @@ def ctv_loss_model_train(frame_features,proj,scores):
   lunq = F.binary_cross_entropy(scores, 1 - unq_target.detach())
   return laln, lunif, lunif_fv, lunq
 
-def ctv_loss_model_pred(frame_features,proj,unq_scores,use_unif=True,use_unique=False):
-  norm_raw = F.normalize(frame_features,p=2,dim=-1)
-  xy_raw = torch.einsum('bmc, bnc -> bmn', norm_raw, norm_raw)
-  norm_proj = F.normalize(frame_features,p=2,dim=-1)
+def ctv_loss_model_pred(feats,proj,unq_scores,ratio_s,ratio_k1,use_unif=True,use_unique=False):
+  assert (len(feats.shape) == 3) and (len(proj.shape) == 3)
+  with torch.no_grad():
+      norm_raw = F.normalize(feats, p=2, dim=-1)
+      xy_raw = torch.einsum('bmc, bnc -> bmn', norm_raw, norm_raw)
+  norm_proj = F.normalize(proj, p=2, dim=-1)
   xy = torch.einsum('bmc, bnc -> bmn', norm_proj, norm_proj)
   sort_ids = torch.argsort(xy_raw, -1, descending=True)
+
   diff_mat = 2 - 2 * xy
-  L = frame_features.shape[1]
+  L = feats.shape[1]
   S = int(L * ratio_s) 
   K1 = int(L * ratio_k1)
-  pos = torch.gather(diff_mat, -1, sort_ids[:,:,S:S+K1])
-  laln = pos.mean(dim=-1)
-  lunif = diff_mat.mul(-2).exp().mean(dim=-1).log()
-  laln = laln.flatten().cpu()
-  lunif = lunif.flatten().cpu()
 
-  laln = (laln - laln.min()) / (laln.max() - laln.min())
-  lunif = (lunif - lunif.min()) / (lunif.max() - lunif.min())
+  pos = torch.gather(diff_mat, -1, sort_ids[:,:,S:S+K1])
+
+  laln = pos.mean(dim=-1)
+  
+  lunif = diff_mat.mul(-2).exp().mean(dim=-1).log()
 
   unq_scores = unq_scores.cpu().flatten()
   unq_scores = (unq_scores - unq_scores.min()) / (unq_scores.max() - unq_scores.min())
@@ -82,10 +85,3 @@ def ctv_loss_model_pred(frame_features,proj,unq_scores,use_unif=True,use_unique=
     scores *= unq_scores
   return scores
 
-def post_process_ctv(scores:torch.tensor,dataset='tvsum'):
-  scores = gaussian_filter1d(scores.numpy(), 1)
-  if dataset =='tvsum':
-    scores = np.exp(scores - 1) 
-  elif dataset =='summe':
-     scores = scores + 0.05
-  return scores 

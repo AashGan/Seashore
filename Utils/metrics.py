@@ -109,7 +109,7 @@ def process_and_route_single(pred:torch.tensor,gt:torch.tensor,metadata:dict,gro
         return evaluate_correlation(pred,gt,ground_truth_data,eval_type)
     elif metric =="f1":
         assert post_process in ['summary_gen','binarize_top_k'], "For F1 evaluation Post processing must be summary_gen, or binarize_top_k"
-        return evaluate_f1(pred,ground_truth_data,eval_type)
+        return evaluate_f1(pred,ground_truth_data,metadata,post_process,eval_type)
     else:
         raise ValueError('provide an eval type: [corr,f1]')
     
@@ -136,6 +136,24 @@ def evaluate_correlation(pred,gt,ground_truth_data,eval_type):
 
     
 #TODO: implement f1, which takes the eval_type to have the "max" and "best" eval thing from past research
-def evaluate_f1(pred,ground_truth_data,eval_type):
-    raise NotImplementedError
+def evaluate_f1(pred,ground_truth_data,metadata,post_process,eval_type):
+    assert eval_type in ['max','avg'], "evaluation is done either max or average"
+    user_summaries = ground_truth_data['user_summary']
+    scores = []
+    for user_summary in user_summaries:
+        if post_process == 'binarize_top_k':
+            if pred.shape[-1]!= user_summary:
+                user_summary = user_summary[metadata['picks']]
+            scores.append(f1_score(user_summary,pred))
+        elif post_process == 'summary_gen':
+            scores.append(f1_score(user_summary,pred))
+        else:
+            raise NotImplementedError
+    if eval_type == "max":
+        return np.max(scores)
+    elif eval_type == "avg":
+        return np.average(scores)
+    else:
+        raise NotImplementedError
+
         
