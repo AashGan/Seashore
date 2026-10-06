@@ -1,0 +1,9 @@
+{
+  "input_size": 1024,
+  "output_size": 1024,
+  "freq": 10000,
+  "pos_enc": "absolute",
+  "num_segments": 4,
+  "heads": 8,
+  "fusion": "add"
+}

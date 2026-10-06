@@ -1,0 +1,11 @@
+{
+  "input_dim": 1024,
+  "model_dim": 256,
+  "nhead": 4,
+  "num_blocks": 4,
+  "conv_kernel_sizes": [
+    31
+  ],
+  "dropout": 0.1,
+  "order": "att_first"
+}

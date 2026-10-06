@@ -1,0 +1,6 @@
+{
+  "input_size": 1024,
+  "output_size": 1024,
+  "block_size": 60,
+  "positional_encoding": true
+}
