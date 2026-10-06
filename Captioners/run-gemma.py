@@ -27,9 +27,9 @@ def run_gemma(video_directory,model_name,save_directory,captioning_style='whole_
             if refine:
                 refined_message,input_len = refine_caption(processor,generated_outputs)
                 generated_outputs = forward_and_decode(model, refined_message, input_len,processor,768)
-            caption_dict['video_key'] = generated_outputs
+            caption_dict[video_key] = generated_outputs
         with open(os.path.join(save_directory,f'{video_key}.json'),'w') as f:
-            json.dump({'Captions':caption_dict},f)
+            json.dump(caption_dict,f,indent =2)
 
     if captioning_style == "indexed_frame_wise":
         for video_key,video_path in zip(video_save_names,all_videos):

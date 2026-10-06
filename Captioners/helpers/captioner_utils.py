@@ -63,8 +63,10 @@ def whole_video_prompt_message(processor,message,images,sampled_slices,previous_
   input_len = messages["input_ids"].shape[-1]
   return messages,input_len
 
-def run_base_video_caption(video_file_path, model, processor, message, max_new_tokens = 512):
-  processed_message,lens = whole_video_encode_and_message(processor,video_file_path,message)
-  generated_output = forward_and_decode(model,processed_message,0,processor,max_new_tokens) # Using zero since each model has their own special decoding for longer videos that need to be done
+def run_base_video_caption(video_file_path, model, processor, message,remove_prompt = True, max_new_tokens = 512,skip_special_tokens = False,enable_thinking=None):
+  processed_message,lens = whole_video_encode_and_message(processor,video_file_path,message,enable_thinking)
+  if not remove_prompt:
+    lens = 0
+  generated_output = forward_and_decode(model,processed_message,lens,processor,max_new_tokens,skip_special_tokens) # Using zero since each model has their own special decoding for longer videos that need to be done
   return generated_output, lens
 
