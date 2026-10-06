@@ -142,7 +142,7 @@ def evaluate_f1(pred,ground_truth_data,metadata,post_process,eval_type):
     scores = []
     for user_summary in user_summaries:
         if post_process == 'binarize_top_k':
-            if pred.shape[-1]!= user_summary:
+            if len(pred)!= len(user_summary):
                 user_summary = user_summary[metadata['picks']]
             scores.append(f1_score(user_summary,pred))
         elif post_process == 'summary_gen':

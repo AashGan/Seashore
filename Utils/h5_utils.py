@@ -8,7 +8,8 @@ def read_and_rename(h5path,name_map_dict):
     with h5py.File(h5path,"r+") as h5file:
         for key in h5file.keys():
             for old_name,new_name in name_map_dict.items():
-                h5file[key].move(old_name,new_name)
+                if old_name in h5file[key].keys():
+                    h5file[key].move(old_name,new_name)
 
 
 
@@ -23,9 +24,9 @@ def combine_h5(h5_1_file,h5_2_file,final_h5):
             h5_1.copy(key, h5_out)
 
         for key in h5_2.keys():
+            print(key)
             for sub_key in h5_2[key].keys():
-                h5_2.copy(sub_key, h5_out[key])
-
+                h5_2[key].copy(sub_key, h5_out[key])
 def copy_h5(source_h5,dest_h5):
     for key in source_h5.keys():
         source_h5.copy(key,dest_h5)
