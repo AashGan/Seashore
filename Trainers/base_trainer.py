@@ -30,16 +30,23 @@ class MetadataStore:
     def get(self, dataset, video_key):
         f = self.files[dataset]
         group = f[video_key]
-
+        positions = self.get_key_and_return_array(group,"positions")
+        n_frames = self.get_key_and_return_array(group,"n_frames")
+        shot_bounds = self.get_key_and_return_array(group,"shot_bounds")
         metadata = {
-            "positions": group["positions"][...],
-            "n_frames": int(group["n_frames"][...]),
-            "shot_bounds": group["shot_bounds"][...]
+            "positions": positions,
+            "n_frames": n_frames,
+            "shot_bounds": shot_bounds
         }
 
 
         return metadata
-
+    @staticmethod
+    def get_key_and_return_array(group,key):
+        output = group.get(key,None)
+        if output is not None:
+            return output[...]
+        return output
     def get_gt(self,dataset,video_key):
         f = self.files[dataset]
         group = f[video_key]
