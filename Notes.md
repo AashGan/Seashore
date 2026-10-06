@@ -65,3 +65,10 @@ VideoXUM videos need to be found (completed)
     1. For shot boundary detection
     2. Miscellaneous task
 
+
+
+
+# Adjustments for other datasets (KEEP SOMEWHERE)
+
+Some repositories are using downsampled user_summaries (videoxum), in ours we'd upsample them for fairness. 
+the big issue: Should I recreate MrHiSum?
