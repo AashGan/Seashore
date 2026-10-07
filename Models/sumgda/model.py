@@ -101,6 +101,6 @@ class SUM_GDA(nn.Module):
         out = self.sigmoid(self.drop(self.linear_2(y)))
 
         if self.mode == 'Unsupervised' and self.training:
-            return proj,out.view(1,-1)
+            return {'projection':proj,'model_predictions': out.view(1,-1)}
         else:
-            return out.view(1,-1)
+            return {'model_predictions': out.view(1,-1)}

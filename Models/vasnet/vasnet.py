@@ -104,7 +104,7 @@ class VASNet(nn.Module):
         y = y.view(bs, -1)
         if return_att:
             return y, att_weights_
-        return y
+        return {'model_predictions' : y}    
 
 
 

@@ -682,4 +682,4 @@ class CSTA_ResNet(nn.Module):
             x_out = self.gap(x_out)
             x_out = x_out.squeeze()
 
-        return x_out
+        return {'model_predictions':x_out}

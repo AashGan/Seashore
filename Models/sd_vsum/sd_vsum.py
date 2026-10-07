@@ -49,4 +49,4 @@ class SD_VSum(nn.Module):
         y = self.sigmoid(y)
         #y = y.view(1, -1)
 
-        return y
+        return {'model_predictions':y}

@@ -78,6 +78,6 @@ class CLIP_IT(nn.Module):
         if return_features:
             score, features = output
             conv_features = self.feature_convolution.forward(features)
-            return score, conv_features
+            return {'model_predictions':score,'projection': conv_features}
         else:
-            return output
+            return {'model_predictions':score}
