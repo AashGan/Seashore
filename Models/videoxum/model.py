@@ -6,8 +6,8 @@ class VTSum_BLIP_TT(nn.Module):
     def __init__(self,
                  dim,
                  tt_depth=1,
-                 file_path = 'model_base_capfilt_large.pth',
-                 med_config='med_config.json',
+                 file_path = 'Supplemental/video_xum_supp/model_base_capfilt_large.pth',
+                 med_config='Supplemental/video_xum_supp/med_config.json',
                  prompt='a video of ',
                  max_text_length=128):
         """ VTSum_BLIP model with Temporal Transformer (TT)
