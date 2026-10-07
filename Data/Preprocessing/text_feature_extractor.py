@@ -4,7 +4,7 @@
 
 
 import torch
-from sentence_transformer import SentenceTransformer
+from sentence_transformers import SentenceTransformer
 
 
 class SentenceTransformerWrapper():
@@ -37,9 +37,10 @@ class HFTextWrapper():
         input_text_batch = input_text.split('.')
         processor_kwargs = kwargs.get('processor_kwargs',{})
         processed_inputs = self.processor(text = input_text_batch,**processor_kwargs)
-        outputs = self.model(**processed_inputs.to(self.device))
-        if self.target_key is not None:
-            return outputs[self.target_key]
+        with torch.no_grad():
+            outputs = self.model(**processed_inputs.to(self.device))
+            if self.target_key is not None:
+                return outputs[self.target_key]
         return outputs  
 
 
