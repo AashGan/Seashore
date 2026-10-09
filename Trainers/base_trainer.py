@@ -52,11 +52,16 @@ class MetadataStore:
         group = f[video_key]
         if "user_score" in group.keys():
             user_score = group["user_score"][...]
+        elif "gtscore_xum" in group.keys():
+            user_score = group['gtscore_xum'][...]
         else:
             user_score = group["gtscore"][...]
+        user_summary = group["user_summary"][...]
+        if len(user_summary.shape)<2:
+            user_summary = user_summary[None,:]
         metadata = {
             "user_score": user_score,
-            "user_summary": group["user_summary"][...]
+            "user_summary":user_summary
         }
 
 
@@ -71,7 +76,7 @@ class MetadataStore:
 class BaseTrainer(pl.LightningModule):
 
     def __init__(self,model:nn.Module,datasets:list|dict,eval_type:dict[str],
-                 post_process_dict:dict[str],lr:float=1e-5,criterion:Callable = F.mse_loss,
+                 post_process_dict:dict[str],lr:float=1e-5,criterion:Callable = F.mse_loss,include_features=False,
                  eval_criterion='corr'):
         super().__init__()
         self.model = model
@@ -83,6 +88,7 @@ class BaseTrainer(pl.LightningModule):
         #TODO, add validation keys to exclude for hyper-parameter logging
         self.criterion = criterion
         self.lr = lr
+        self.include_feature = include_features
 
     def training_step(self, batch, batch_idx):
         x, y= batch['features'],batch['gtscore']
@@ -90,10 +96,11 @@ class BaseTrainer(pl.LightningModule):
         if "mask" in batch.keys():
             mask = batch['mask']
         # Forward pass
-        y_pred = self.model(x)
+        y_pred = self.model(x) # This output would be a dict
         
-        # Calculate loss (MSE)
-        loss = self.criterion(y_pred, y, mask) if mask is not None else self.criterion(y_pred, y)
+        if self.include_feature:
+            y_pred['frame_features'] = x
+        loss = self.criterion(**y_pred,keyframe_labels= y, keyframe_masks = mask) 
         
         # Log the loss
         self.log('train_loss', loss)
