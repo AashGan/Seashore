@@ -58,4 +58,11 @@ class Shufflebylength(object):
             return features,ground_truth
 
 
+class ShuffleComposer():
+    def __init__(self,shuffle_length_dict):
+        self.shuffle_object = [shuffle_dict[key](**values) for key,values in shuffle_length_dict.items()]
+    def __call__(self,x):
+        for obj in self.shuffle_object:
+            x = obj(x)
+        return x
 shuffle_dict = {'complete':WholeShuffle,'segments':Shufflebylength,'flip':Flip}

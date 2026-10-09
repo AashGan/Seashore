@@ -3,11 +3,11 @@ import json
 from torch.utils.data import Dataset
 import os 
 import numpy as np
-
+from .shufflers import ShuffleComposer
 base_file_path = 'Data/h5Datasets'
 #TODO: Adjust the multi-modal loaders in a more intelligent fashion.
 class MultiH5Loader(Dataset):
-  def __init__(self,split_file,split_name,cross_val_idx,feature_name,sampled_frames:int = None):
+  def __init__(self,split_file,split_name,cross_val_idx,feature_name,shuffler_obj:ShuffleComposer = None,sampled_frames:int = None):
     with open(split_file,'r') as f:
       self.split_file = json.load(f)
     self.data_points = self.split_file[cross_val_idx][split_name]
@@ -16,7 +16,7 @@ class MultiH5Loader(Dataset):
     self.feature_name = feature_name
     self.sampled_frames = sampled_frames
     self._create_data_dict(self.included_dataset)
-
+    self.shuffler_obj = shuffler_obj
   def __len__(self):
     return len(self.data_points)
 
@@ -34,7 +34,8 @@ class MultiH5Loader(Dataset):
     gtscore = self.dataset_dict[dataset][video_index]['gtscore'][...]
     if self.sampled_frames:
       features,gtscore = subsample(features,gtscore,self.sampled_frames)
-
+    if self.shuffler_obj is not None:
+      features = self.shuffler_obj(features)
 
     return {'features':features,'gtscore':gtscore,'data_point': data_point} # We return the data_name for the eval stuff
   
