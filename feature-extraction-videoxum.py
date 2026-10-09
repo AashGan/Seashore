@@ -30,7 +30,7 @@ def generate_metadata_h5(division_rate=10,video_xum=None):
             total_frames = int(f.get(cv2.CAP_PROP_FRAME_COUNT))
             f.release()
             # Making positions, and shot boundaries, may require some adjusting to get different shot boundaries
-            positions = np.arange(0,int(total_frames/fps))*fps
+            positions = np.arange(0,int(total_frames//fps))*fps
             step = fps*division_rate
             shot_bounds = np.array([(start,min(start+step,total_frames)) for start in range(0,total_frames,step)])
             vsum_hot = np.array(row['vsum_onehot'])
