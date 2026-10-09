@@ -9,13 +9,16 @@ from torchvision.models.feature_extraction import create_feature_extractor
 from torchvision.models import resnet50, ResNet50_Weights
 from transformers import AutoProcessor, CLIPVisionModel,Siglip2VisionModel
 from tqdm import tqdm
+import json 
 videoxum_metadata = 'Data/Metadata/'
 data_source = 'Data/videos/Activity_Videos'
 # TODO: should track the rows which are val and test
 def generate_metadata_h5(division_rate=10,video_xum=None):
     metadata_df = pd.concat([pd.read_json(f'{videoxum_metadata}{mode}_videoxum.json') for mode in ['train','val','test']],axis=0,ignore_index=True) 
     metadata_h5 = f'videoxum_metadata.h5'
-    
+    counter_for_greater = 0
+    counter_for_lesser = 0
+    lesser_and_greater_dict = {}
     with h5py.File(metadata_h5,'w') as data_file:
         for index,row in metadata_df.iterrows():
             video_name = f'video_{index+1}'
@@ -32,9 +35,19 @@ def generate_metadata_h5(division_rate=10,video_xum=None):
             # Making positions, and shot boundaries, may require some adjusting to get different shot boundaries
             positions = np.arange(0,int(total_frames//fps))*fps
             step = fps*division_rate
+            
             shot_bounds = np.array([(start,min(start+step,total_frames)) for start in range(0,total_frames,step)])
             vsum_hot = np.array(row['vsum_onehot'])
-            # Repeat the values to upsampled
+            # Matching positions as there are issues with how the authors sampled everything
+            if positions.shape[0]>vsum_hot.shape[1]:
+                counter_for_greater+=1
+                lesser_and_greater_dict[video_name] = {'less_great':'great',"fps_div":total_frames/fps,"positions":positions.shape[0],'vsum_shape':vsum_hot.shape[1]}
+                positions = positions[:vsum_hot.shape[1]]
+            elif positions.shape[0]<vsum_hot.shape[1]:
+    
+                counter_for_lesser+=1
+                lesser_and_greater_dict[video_name] = {'less_great':'less',"fps_div":total_frames/fps,"positions":positions.shape[0],'vsum_shape':vsum_hot.shape[1]}
+                vsum_hot = vsum_hot[:,:len(positions)]
             vsum_hot_upsample  = np.repeat(vsum_hot,fps,axis = 1) # The paper says its sampled at one FPS, so we replicate each of them at the FPS
 
             if vsum_hot_upsample.shape[1]<total_frames: # Check if the length is less than
@@ -55,7 +68,10 @@ def generate_metadata_h5(division_rate=10,video_xum=None):
                 data_file.create_dataset(f'{video_name}/activitynet_video_id',data=row['video_id'])
             except:
                 print(f'Video name :{video_name} exists')
-
+    print(f'Greater count: {counter_for_greater}')
+    print(f'Greater count: {counter_for_lesser}')
+    with open('diagnos_dict.json','w') as f:
+        json.dump(lesser_and_greater_dict,f)
             
             
 
@@ -149,7 +165,7 @@ def run_feature_extractor_hf(video_base_path,save_name):
 
 
 if __name__ == "__main__":
-    #generate_metadata_h5()
-    #run_feature_extractor_hf(data_source,"siglip2_videoxum")
-    #run_feature_extractor_base(data_source,"resnet_videoxum")
-    run_feature_extractor_hf(data_source,"clip_videoxum")
+    generate_metadata_h5()
+    # #run_feature_extractor_hf(data_source,"siglip2_videoxum")
+    # #run_feature_extractor_base(data_source,"resnet_videoxum")
+    # run_feature_extractor_hf(data_source,"clip_videoxum")
