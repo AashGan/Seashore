@@ -46,7 +46,7 @@ def video_sampler_indices(video_path, target_fps,videoxum_flag = None):
 
     target_frames = np.arange(0,original_frame_count,frame_interval).astype(int)
     if videoxum_flag:
-       target_frames = np.arange(0,int(original_frame_count/original_fps))*original_fps
+       target_frames = np.arange(0,int(original_frame_count//original_fps))*original_fps
 
 
     downsampled_frames = []
