@@ -133,7 +133,7 @@ class PGL_SUM(nn.Module):
         y = y.view(bs, -1)
         if return_att:
             return y, attn_weights
-        return y
+        return {'model_predictions':y}
 
 
 if __name__ == '__main__':

@@ -37,7 +37,7 @@ class SelfAttention(nn.Module):
         
         # for batch training
         if mask is not None:
-            logits[~mask] = -1e9 #float('-Inf')
+            logits = logits.masked_fill_(~mask[:,None,:],-1e9)
 
         if self.ignore_itself:
             # Zero the diagonal activations (a distance of each frame with itself)
@@ -104,7 +104,7 @@ class VASNet(nn.Module):
         y = y.view(bs, -1)
         if return_att:
             return y, att_weights_
-        return y
+        return {'model_predictions' : y}    
 
 
 

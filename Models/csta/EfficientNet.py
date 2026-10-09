@@ -520,6 +520,8 @@ class CSTA_EfficientNet(nn.Module):
                 raise
 
     def forward(self, x):
+        if len(x.size) == 3:
+            x = x.expand(3,-1,-1).unsqueeze(0)
         n_frame = x.shape[2]
         
         if self.Positional_encoding_way=='Transformer':
@@ -744,4 +746,4 @@ class CSTA_EfficientNet(nn.Module):
             x_out = self.gap(x_out)
             x_out = x_out.squeeze()
 
-        return x_out
+        return {'model_predictions':x_out}

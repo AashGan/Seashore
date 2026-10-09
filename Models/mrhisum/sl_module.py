@@ -21,7 +21,7 @@ class SL_module(nn.Module):
         
         score = torch.sigmoid(score)
 
-        return score
+        return {'model_predictions' :score}
 
     def load_state_dict(self, state_dict, strict=True):
         if 'transformer' in state_dict.keys(): 

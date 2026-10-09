@@ -2,9 +2,8 @@ import json
 import os
 
 def generate_json(save_path):
-    parameter_dict = {"d_model":1024, 
-                      "nhead":1024, 
-                      "ff_expansion_factor":10000}
+    parameter_dict = {"input_dim":1024, "model_dim":256, "nhead":4, "num_blocks":4,
+                 "conv_kernel_sizes":(31,), "dropout": 0.1, "order":"att_first"}
     with open(save_path,'w') as f:
         json.dump(parameter_dict,f,indent = 2)
 

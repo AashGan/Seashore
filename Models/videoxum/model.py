@@ -6,8 +6,8 @@ class VTSum_BLIP_TT(nn.Module):
     def __init__(self,
                  dim,
                  tt_depth=1,
-                 file_path = 'model_base_capfilt_large.pth',
-                 med_config='med_config.json',
+                 file_path = 'Supplemental/video_xum_supp/model_base_capfilt_large.pth',
+                 med_config='Supplemental/video_xum_supp/med_config.json',
                  prompt='a video of ',
                  max_text_length=128):
         """ VTSum_BLIP model with Temporal Transformer (TT)
@@ -82,7 +82,7 @@ class VTSum_BLIP_TT(nn.Module):
           encoder_attention_mask=video_mask,
           labels=decoder_targets,
           return_dict=True)
-      return saliency_scores.sigmoid(),decoder_output
+      return {'model_predictions':saliency_scores.sigmoid(),'text_decoder_output':decoder_output}
 
     def generate(self, video_embeddings, video_mask=None, sample=False,
                  num_beams=3, max_length=30, min_length=10, top_p=0.9,
@@ -217,7 +217,7 @@ class VTSum_BLIP_TT_CA(VTSum_BLIP_TT):
         encoder_attention_mask=video_mask,
         labels=decoder_targets,
         return_dict=True)
-    return saliency_scores.sigmoid(),decoder_output
+    return {'model_predictions':saliency_scores.sigmoid(),'text_decoder_output':decoder_output}
   def generate(self, video_embeddings, video_mask=None, sample=False,
                  num_beams=3, max_length=30, min_length=10, top_p=0.9,
                  repetition_penalty=1.0 ):

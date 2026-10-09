@@ -170,7 +170,7 @@ class CA_SUM(nn.Module):
         y = y.view(1, -1)
 
         #return y, attn_weights
-        return y
+        return {'model_predictions': y} 
     
 
 

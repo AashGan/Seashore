@@ -73,23 +73,32 @@ def encode_batch_image_and_message(processor, images, message):
     input_lens = batch["attention_mask"].sum(dim=1)
     return batch, input_lens
 
-def whole_video_encode_and_message(processor,video_path,message):
+def whole_video_encode_and_message(processor,video_path,message,enable_thinking = None):
     content = [{'type':'video','video':video_path},{'type':'text','text':message}]
     batch_message = [{"role":"user","content":content}]
-    messages = processor.apply_chat_template(batch_message,
-                                            tokenize=True,
-                                            return_dict=True,
-                                            return_tensors="pt",
-                                            padding=True,
-                                            add_generation_prompt=True,)
+    if enable_thinking is not None:
+        print("I'm here")
+        messages = processor.apply_chat_template(batch_message,
+                                                tokenize=True,
+                                                return_dict=True,
+                                                return_tensors="pt",
+                                                padding=True,
+                                                add_generation_prompt=True,enable_thinking = enable_thinking)
+    else:
+       messages = processor.apply_chat_template(batch_message,
+                                                       tokenize=True,
+                                                       return_dict=True,
+                                                       return_tensors="pt",
+                                                       padding=True,
+                                                       add_generation_prompt=True)
     input_len = messages["input_ids"].shape[-1]
     return messages,input_len
 
-def forward_and_decode(model,processed_message,input_len,processor,max_new_tokens = 75):
+def forward_and_decode(model,processed_message,input_len,processor,max_new_tokens = 75,skip_special_tokens = False):
   with torch.no_grad():
     output_ids = model.generate(**processed_message.to(model.device),max_new_tokens = max_new_tokens)
 
-  return processor.decode(output_ids[0][input_len:-1],skip_special_tokens = False)
+  return processor.decode(output_ids[0][input_len:-1],skip_special_tokens = skip_special_tokens)
 
 def forward_and_batch_decode(model,processed_message,input_lens,processor,max_new_tokens = 75):
     with torch.no_grad():

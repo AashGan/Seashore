@@ -120,10 +120,7 @@ class SelfAttention(nn.Module):
                     energies = energies + RP
 
             if mask is not None:
-                mask2 = mask.unsqueeze(-1)
-                mask2_t = mask2.transpose(2,1)
-                attention_mask = torch.matmul(mask2.float(), mask2_t.float()).bool()
-                energies[~attention_mask] = -1e9 #float('-Inf')
+                energies = energies.masked_fill(mask[:,None,:], -1e9) #float('-Inf') # my guess is that
 
             att_weights = self.softmax(energies)
             _att_weights = self.drop(att_weights)

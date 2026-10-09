@@ -134,4 +134,7 @@ def run_feature_extractor_hf(dataset_name,video_base_path,save_name):
 
 if __name__ == "__main__":
     #run_feature_extractor_base('summe','/home/aash/Datasets/summe','resnet_summe')
-    run_feature_extractor_hf('tvsum','/home/aash/Datasets/tvsum','siglip_tvsum')
+    #run_feature_extractor_hf('tvsum','/home/aash/Datasets/tvsum','clip_tvsum')
+    run_feature_extractor_hf('summe','/home/aash/Datasets/summe','siglip2_summe')
+    # run_feature_extractor_base('tvsum','/home/aash/Datasets/tvsum','resnet_tvsum')
+    # run_feature_extractor_base('summe','/home/aash/Datasets/summe','resnet_summe')

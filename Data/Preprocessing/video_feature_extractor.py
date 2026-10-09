@@ -5,7 +5,7 @@ import torch
 from transformers import AutoImageProcessor, AutoModel
 import cv2
 
-def video_sampler_indices(video_path, target_fps):
+def video_sampler_indices(video_path, target_fps,videoxum_flag = None):
     """
     Downsamples a video to a target FPS and returns the downsampled frames
     and their original indices.
@@ -42,9 +42,12 @@ def video_sampler_indices(video_path, target_fps):
         cap.release()
         return None, None
     else:
-        frame_interval = int(original_fps / target_fps)
+        frame_interval = round(original_fps / target_fps)
 
     target_frames = np.arange(0,original_frame_count,frame_interval).astype(int)
+    if videoxum_flag:
+       target_frames = np.arange(0,int(original_frame_count/original_fps))*original_fps
+
 
     downsampled_frames = []
     sampled_frame_indices = []
@@ -93,29 +96,26 @@ class TorchVideoExtractor():
     device : str, optional
         Device used for inference, by default "cpu".
     """
-    def __init__(self,fps,model,preprocessor,batch_size,key=None,device='cpu'):
+    def __init__(self,fps,model,preprocessor,batch_size,key=None,device='cpu',**kwargs):
       self.model = model
       self.preprocessor = preprocessor
       self.batch_size = batch_size
       self.device = device
       self.fps = fps
       self.key = key
+      self.videoxum_flag = kwargs.get('videoxum_flag',None)
     def return_images(self,video_path):
-      images,indices = video_sampler_indices(video_path,self.fps)
+      images,indices = video_sampler_indices(video_path,self.fps,self.videoxum_flag)
       return images,indices
     def process_and_return_embeddings(self,images):
       self.model.eval()
       self.model.to(self.device)
-      print("Moved Model to Device")
       embeddings = []
       for i in range(0,len(images),self.batch_size):
         batch = images[i:i+self.batch_size].copy()
-        print("Extracted Batch")
         inputs = self.preprocessor(torch.from_numpy(batch.transpose(0,3,1,2))) # Assumes that
-        print("Ran Preprocessing")
         with torch.no_grad():
           outputs = self.model(inputs.to(self.device))
-        print(f"Model ran sucessfully on batch{i}")
         if self.key is not None:
           embeddings.append(outputs[self.key].to('cpu').flatten(1).numpy())
         else:
@@ -123,13 +123,12 @@ class TorchVideoExtractor():
       return embeddings
     def __call__(self,video_path):
         images,indices = self.return_images(video_path)
-        print('Completed returning images from video')
         embeddings = self.process_and_return_embeddings(images)
         return np.concatenate(embeddings,axis = 0),indices
     
 
 class HFVideoExtractor():
-    def __init__(self,fps,model,preprocessor,batch_size,pooler_att='pooler_output',device='cpu'):
+    def __init__(self,fps,model,preprocessor,batch_size,pooler_att='pooler_output',device='cpu',**kwargs):
       self.model = model
       self.preprocessor = preprocessor
       self.batch_size = batch_size
@@ -137,8 +136,9 @@ class HFVideoExtractor():
       self.fps = fps
       assert self.pooler_att in ['pooler_output','vision_pooler_output'], "Specify the pooler"
       self.device = device
+      self.videoxum_flag = kwargs.get('videoxum_flag',None)
     def return_images(self,video_path):
-      images,indices = video_sampler_indices(video_path,self.fps)
+      images,indices = video_sampler_indices(video_path,self.fps,self.videoxum_flag)
       return images,indices
     def process_and_return_embeddings(self,images):
       self.model.eval()

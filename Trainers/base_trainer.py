@@ -30,22 +30,32 @@ class MetadataStore:
     def get(self, dataset, video_key):
         f = self.files[dataset]
         group = f[video_key]
-
+        positions = self.get_key_and_return_array(group,"positions")
+        n_frames = self.get_key_and_return_array(group,"n_frames")
+        shot_bounds = self.get_key_and_return_array(group,"shot_bounds")
         metadata = {
-            "positions": group["positions"][...],
-            "n_frames": int(group["n_frames"][...]),
-            "shot_bounds": group["shot_bounds"][...]
+            "positions": positions,
+            "n_frames": n_frames,
+            "shot_bounds": shot_bounds
         }
 
 
         return metadata
-
+    @staticmethod
+    def get_key_and_return_array(group,key):
+        output = group.get(key,None)
+        if output is not None:
+            return output[...]
+        return output
     def get_gt(self,dataset,video_key):
         f = self.files[dataset]
         group = f[video_key]
-
+        if "user_score" in group.keys():
+            user_score = group["user_score"][...]
+        else:
+            user_score = group["gtscore"][...]
         metadata = {
-            "user_score": group["user_score"][...],
+            "user_score": user_score,
             "user_summary": group["user_summary"][...]
         }
 
@@ -99,11 +109,11 @@ class BaseTrainer(pl.LightningModule):
         eval_type = self.eval_type[dataset]
         post_process = self.post_process_dict[dataset]
         if self.eval_criterion =='corr':
-            result_dict = process_and_route_single(y_pred,y,metadata,ground_truth_data,eval_type,post_process,self.eval_criterion)
+            result_dict = process_and_route_single(y_pred['model_predictions'],y,metadata,ground_truth_data,eval_type,post_process,self.eval_criterion)
             self.log('kendall',result_dict['kendall'],prog_bar = True,on_epoch=True)
             self.log('spearman',result_dict['spearman'],prog_bar = True,on_epoch=True)
         elif self.eval_criterion == 'f1':
-            f1 = process_and_route_single(y_pred,y,metadata,ground_truth_data,eval_type,post_process,self.eval_criterion)
+            f1 = process_and_route_single(y_pred['model_predictions'],y,metadata,ground_truth_data,eval_type,post_process,self.eval_criterion)
             self.log('f1',f1)
 
     def on_train_end(self):

@@ -1,0 +1,16 @@
+split_path: Splits/summe_can_1.json
+model_parameters:
+  name: 'pgl_sum'
+  # space for parameters 
+training_parameters:
+  epochs: 15
+  learning_rate: 0.000001
+  batch_size: 1
+  loss_function: 'mse'
+eval_parameters:
+  post_process_dict:
+    tvsum: 'upsample'
+    summe: 'upsample'
+  eval_type:
+    tvsum: 'user_score'
+    summe: 'user_summary'

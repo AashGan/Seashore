@@ -275,20 +275,20 @@ class TemporalTransformer(nn.Module):
 
         return x
 
-    def create_tt(dim,
-    depth=1,
-    **kwargs,):
-        """
-        Create the temporal transformer.
-        """
-        model = TemporalTransformer(
-            embed_dim=dim,
-            depth=depth,
-            num_heads=dim // 64,
-            **kwargs,
-        )
+def create_tt(dim,
+depth=1,
+**kwargs,):
+    """
+    Create the temporal transformer.
+    """
+    model = TemporalTransformer(
+        embed_dim=dim,
+        depth=depth,
+        num_heads=dim // 64,
+        **kwargs,
+    )
 
-        return model, dim
+    return model, dim
 if __name__ == "__main__":
     x = torch.randn(2, 32, 768)
 

@@ -5,3 +5,7 @@ This code needs major fixes
 3. This also requires a modification of the batch size : Done
 4. Need to make a custom dataloader which samples frames from the video which samples frames
 5. Need to make a custom torch lightning script. 
+
+
+The model code needs to be modified and tested:
+ 1. Make the loss model agnostic and test it out 

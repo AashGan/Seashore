@@ -1,0 +1,17 @@
+{
+  "model_name": "ResNet_Attention",
+  "Scale": null,
+  "Softmax_axis": "TD",
+  "Balance": null,
+  "Positional_encoding": "FPE",
+  "Positional_encoding_shape": "TD",
+  "Positional_encoding_way": "PGL_SUM",
+  "Dropout_on": true,
+  "Dropout_ratio": 0.6,
+  "Classifier_on": true,
+  "CLS_on": true,
+  "CLS_mix": "Final",
+  "key_value_emb": "kv",
+  "Skip_connection": "KC",
+  "Layernorm": true
+}

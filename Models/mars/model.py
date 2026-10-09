@@ -238,4 +238,4 @@ class MARs(nn.Module):
         # 5. 시그모이드 활성화: 점수를 0~1 사이로 변환
         scores = self.sigmoid(x)
 
-        return scores.squeeze()
+        return {'model_predictions': scores.squeeze()}

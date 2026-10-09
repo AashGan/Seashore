@@ -2,7 +2,7 @@ import torch
 import torch.nn.functional as F
 from einops import rearrange
 from torch import nn
-
+# This has been modified from the original implementation to make it compatible with our style of masking
 class Residual(nn.Module):
     def __init__(self, fn):
         super(Residual, self).__init__()
@@ -54,10 +54,7 @@ class Attention(nn.Module):
         dots = torch.einsum('bhid,bhjd->bhij', q, k) * self.scale
 
         if mask is not None:
-            mask = F.pad(mask.flatten(1), (1, 0), value = True)
-            assert mask.shape[-1] == dots.shape[-1], 'mask has incorrect dimensions'
-            mask = mask[:, None, :] * mask[:, :, None]
-            dots.masked_fill_(~mask, float('-inf'))
+            dots.masked_fill_(~mask[:,None,None,:], float('-inf'))
             del mask
 
         attn = dots.softmax(dim=-1)

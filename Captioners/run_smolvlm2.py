@@ -23,10 +23,13 @@ def run_smolvlm(video_directory,model_name,save_directory,save_name = 'test',cap
     if captioning_style =='whole_video':
             save_dict = {}
             for video_key,video_path in tqdm.tqdm(zip(video_save_names,all_videos)):
-                generated_outputs = run_base_video_caption(video_path,model,processor,generic_video_message,1024)
-                generated_outputs = generated_outputs[0].split('Assistant: ')[-1]
-                save_dict[video_key] = generated_outputs
-            with os.path.join(save_directory,f'{save_name}.json','w') as f:
+                try:
+                    generated_outputs = run_base_video_caption(video_path,model,processor,generic_video_message,1024)
+                    generated_outputs = generated_outputs[0].split('Assistant: ')[-1]
+                    save_dict[video_key] = generated_outputs
+                except:
+                       print(f'Error on video: {video_key}')
+            with open(os.path.join(save_directory,f'{save_name}.json'),'w') as f:
                    json.dump(save_dict,f)
     else:
            raise NotImplementedError
@@ -36,5 +39,8 @@ if __name__ == "__main__":
        video_directory = '/home/aash/Datasets/tvsum'
        model_name = "HuggingFaceTB/SmolVLM2-2.2B-Instruct"
        save_directory = 'Captioners'
-       save_name = 'test_tvsum'
+    #    save_name = 'test_tvsum'
+    #    run_smolvlm(video_directory,model_name,save_directory,save_name)
+       video_directory = '/home/aash/Datasets/summe'
+       save_name = 'test_summe_2'
        run_smolvlm(video_directory,model_name,save_directory,save_name)
