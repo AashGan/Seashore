@@ -14,6 +14,8 @@ Tests needs to be implemented
 The dataset creation needs to be carried out
 VideoXUM videos need to be found (completed)
 
+There are issues with the LLMVs in terms of perfect replication, since Meta requires your login.
+
 
 # Main flow and challenges
 
