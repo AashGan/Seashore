@@ -101,6 +101,10 @@ class WeightedBinaryCrossEntropy(VideoLoss):
 
         assert pred.shape == target.shape
 
+        if len(pred.shape) == 1:
+            pred = torch.unsqueeze(pred, 0)
+            target = torch.unsqueeze(target, 0)
+
         if keyframe_mask is not None:
             assert keyframe_mask.shape[0] == pred.shape[0]
             pred = pred[keyframe_mask]
@@ -143,6 +147,10 @@ class FeatureReconstructionLoss(VideoLoss):
 
         assert pred.shape == target.shape
 
+        if len(pred.shape) == 2:
+            pred = torch.unsqueeze(pred, 0)
+            target = torch.unsqueeze(target, 0)
+
         if feature_mask is not None:
             assert pred.shape[0] == feature_mask.shape[0]
 
@@ -178,6 +186,9 @@ class DiversityLoss(VideoLoss):
             Pairwise cosine distance.
         """
         pred = predicted_features
+
+        if len(pred.shape) == 2:
+            pred = torch.unsqueeze(pred, 0)
 
         if feature_mask is not None:
             assert pred.shape[0] == feature_mask.shape[0]
@@ -222,6 +233,10 @@ class MeanSquaredError(VideoLoss):
 
         assert pred.shape == target.shape
 
+        if len(pred.shape) == 1:
+            pred = torch.unsqueeze(pred, 0)
+            target = torch.unsqueeze(target, 0)
+
         if keyframe_mask is not None:
             assert pred.shape[0] == keyframe_mask.shape[0]
 
@@ -263,6 +278,10 @@ class BinaryCrossEntropy(VideoLoss):
 
         assert pred.shape == target.shape
 
+        if len(pred.shape) == 1:
+            pred = torch.unsqueeze(pred, 0)
+            target = torch.unsqueeze(target, 0)
+
         if keyframe_mask is not None:
             assert keyframe_mask.shape[0] == pred.shape[0]
             pred = pred[keyframe_mask]
@@ -297,16 +316,15 @@ class LengthRegularizationLoss(VideoLoss):
         """
         pred = keyframe_scores
 
+        if len(pred.shape) == 1:
+            pred = torch.unsqueeze(pred, 0)
+
         if keyframe_mask is not None:
             assert pred.shape[0] == keyframe_mask.shape[0]
 
             pred = pred[keyframe_mask]
 
-        norm_diff = (pred - self.__summary_ratio) / pred.shape[0]
-
-        dist = torch.linalg.norm(norm_diff, ord=2)
-
-        return dist
+        return torch.abs(torch.mean(pred) - self.__summary_ratio)
 
     @override
     def get_required_inputs(self) -> set[str]:
@@ -340,6 +358,10 @@ class VariationLoss(
         y = keyframe_scores
 
         assert phi.shape[0] == y.shape[0]
+
+        if len(phi.shape) == 2:
+            phi = torch.unsqueeze(phi, 0)
+            y = torch.unsqueeze(y, 0)
 
         if keyframe_mask is not None:
             assert phi.shape[0] == keyframe_mask.shape[0]
@@ -405,7 +427,7 @@ class WeightedLossStack(VideoLoss):
             loss = l(**used_parameters)
             loss_values.append(w * loss)
 
-        return torch.tensor(loss_values).sum()
+        return torch.stack(loss_values).sum()
 
     @override
     def get_required_inputs(self) -> set[str]:
