@@ -1,5 +1,5 @@
-from typing import Any, Optional, override
-
+from __future__ import annotations
+from typing import Any, Optional, List
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -80,7 +80,7 @@ class WeightedBinaryCrossEntropy(VideoLoss):
     def __init__(self) -> None:
         self.optional_inputs = [self.KEYFRAME_MASK]
 
-    @override
+    
     def __call__(
         self,
         keyframe_scores: torch.Tensor,
@@ -113,7 +113,7 @@ class WeightedBinaryCrossEntropy(VideoLoss):
 
         return -(keyframe_component + background_component).mean()
 
-    @override
+    
     def get_required_inputs(self) -> set[str]:
         return {self.KEYFRAME_SCORES, self.KEYFRAME_LABELS}
 
@@ -122,7 +122,7 @@ class FeatureReconstructionLoss(VideoLoss):
     def __init__(self) -> None:
         self.optional_inputs = [self.FEATURE_MASK]
 
-    @override
+    
     def __call__(
         self,
         predicted_features: torch.Tensor,
@@ -154,7 +154,7 @@ class FeatureReconstructionLoss(VideoLoss):
 
         return dist.mean()
 
-    @override
+    
     def get_required_inputs(self) -> set[str]:
         return {self.FRAME_FEATURES, self.PREDICTED_FEATURES}
 
@@ -163,7 +163,7 @@ class DiversityLoss(VideoLoss):
     def __init__(self) -> None:
         self.optional_inputs = [self.FEATURE_MASK]
 
-    @override
+    
     def __call__(
         self,
         predicted_features: torch.Tensor,
@@ -192,7 +192,7 @@ class DiversityLoss(VideoLoss):
 
         return m_off_diag.sum() / mask.sum()
 
-    @override
+    
     def get_required_inputs(self) -> set[str]:
         return {self.PREDICTED_FEATURES}
 
@@ -201,7 +201,7 @@ class MeanSquaredError(VideoLoss):
     def __init__(self) -> None:
         self.optional_inputs = [self.KEYFRAME_MASK]
 
-    @override
+    
     def __call__(
         self,
         keyframe_scores: torch.Tensor,
@@ -233,7 +233,7 @@ class MeanSquaredError(VideoLoss):
 
         return sq_error.mean()
 
-    @override
+    
     def get_required_inputs(self) -> set[str]:
         return {self.KEYFRAME_SCORES, self.KEYFRAME_LABELS}
 
@@ -242,7 +242,7 @@ class BinaryCrossEntropy(VideoLoss):
     def __init__(self) -> None:
         self.optional_inputs = [self.KEYFRAME_MASK]
 
-    @override
+    
     def __call__(
         self,
         keyframe_scores: torch.Tensor,
@@ -273,7 +273,7 @@ class BinaryCrossEntropy(VideoLoss):
 
         return -(keyframe_component + background_component).mean()
 
-    @override
+    
     def get_required_inputs(self) -> set[str]:
         return {self.KEYFRAME_SCORES, self.KEYFRAME_LABELS}
 
@@ -283,7 +283,7 @@ class LengthRegularizationLoss(VideoLoss):
         self.optional_inputs = [self.KEYFRAME_MASK]
         self.__summary_ratio = summary_ratio
 
-    @override
+    
     def __call__(
         self, keyframe_scores: torch.Tensor, keyframe_mask: torch.Tensor | None = None
     ) -> torch.Tensor:
@@ -308,7 +308,7 @@ class LengthRegularizationLoss(VideoLoss):
 
         return dist
 
-    @override
+    
     def get_required_inputs(self) -> set[str]:
         return {self.KEYFRAME_SCORES}
 
@@ -320,7 +320,7 @@ class VariationLoss(
         self.optional_inputs = [self.FEATURE_MASK, self.KEYFRAME_MASK]
         self.__beta = beta
 
-    @override
+    
     def __call__(
         self,
         predicted_features: torch.Tensor,
@@ -363,7 +363,7 @@ class VariationLoss(
 
         return L_var
 
-    @override
+    
     def get_required_inputs(self) -> set[str]:
         return {self.PREDICTED_FEATURES, self.KEYFRAME_SCORES, self.KEYFRAME_MASK}
 
@@ -382,7 +382,7 @@ class WeightedLossStack(VideoLoss):
             *[l.get_required_inputs() for l in self.losses]
         )
 
-    @override
+    
     def __call__(self, **kwargs: Any) -> torch.Tensor:
         loss_values = []
 
@@ -407,7 +407,7 @@ class WeightedLossStack(VideoLoss):
 
         return torch.tensor(loss_values).sum()
 
-    @override
+    
     def get_required_inputs(self) -> set[str]:
         return self.required_inputs
 
