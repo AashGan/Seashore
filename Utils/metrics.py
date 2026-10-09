@@ -38,11 +38,33 @@ def generate_summary_single(shot_bound,score,n_frames,positions,return_shot_info
     selected = knapSack(final_max_length, shot_lengths, shot_imp_scores, len(shot_lengths))
 
     # Select all frames from each selected shot (by setting their value in the summary vector to 1)
-    summary = np.zeros(final_shot[1] + 1, dtype=np.int8)
+    final_length = final_shot[1] if final_shot[1] == n_frames else final_shot[1] +(n_frames-final_shot[1])
+    summary = np.zeros(final_length, dtype=np.int8)
     for shot in selected:
         summary[shot_bound[shot][0]:shot_bound[shot][1] + 1] = 1
     if return_shot_info:
         return shot_lengths, shot_imp_scores,selected,summary
+    return summary
+#TODO: look up a better way to do the summary generation without upsampling
+def generate_summary_no_upsample(score,shot_bounds):
+    if len(score) != shot_bounds[-1][-1]+1: 
+        positions = np.arange(0,len(score))
+        step = 5
+        shot_bounds = np.array([(start,min(start+step,len(score))) for start in range(0,len(score),step)])
+
+    frame_scores = score
+    shot_imp_scores = []
+    shot_lengths = []
+    for shot in shot_bounds:
+        shot_lengths.append(shot[1] - shot[0] + 1)
+        shot_imp_scores.append((frame_scores[shot[0]:shot[1] + 1].mean()).item())
+    # Select the best shots using the knapsack implementation
+    final_shot = shot_bounds[-1]
+    final_max_length = int((final_shot[1] + 1) * 0.15)
+    selected = knapSack(final_max_length, shot_lengths, shot_imp_scores, len(shot_lengths))
+    summary = np.zeros(final_shot[1] + 1, dtype=np.int8)
+    for shot in selected:
+        summary[shot_bounds[shot][0]:shot_bounds[shot][1] + 1] = 1
     return summary
 # Binarization from Source: https://github.com/IDT-ITI/SD-VSum/blob/main/model/utils/evaluation_metrics.py
 def binarize_top_percent(score, top_percent=0.15):
@@ -97,10 +119,13 @@ def post_process_preds(pred,metadata,post_process):
         return generate_summary_single(shot_bound,pred,n_frames,positions)
     elif post_process == "binarize_top_k":
         return binarize_top_percent(pred)
+    elif post_process == "summary_gen_no_up":
+        return generate_summary_no_upsample(pred,shot_bound)
     else:
         raise ValueError('provide an eval type: [none,upsample,summary_gen]')
 
-def process_and_route_single(pred:torch.tensor,gt:torch.tensor,metadata:dict,ground_truth_data:dict,eval_type:str,post_process:str = "upsample",metric='corr'):
+def process_and_route_single(pred:torch.tensor,gt:torch.tensor,metadata:dict,ground_truth_data:dict,
+                             eval_type:str,post_process:str = "upsample",f1_source:str= None,metric='corr'):
     pred = pred.to('cpu').squeeze().numpy()
     gt = gt.to('cpu').squeeze().numpy()
     pred = post_process_preds(pred,metadata,post_process) # Does the post-procesing based on type
@@ -136,14 +161,18 @@ def evaluate_correlation(pred,gt,ground_truth_data,eval_type):
 
     
 #TODO: implement f1, which takes the eval_type to have the "max" and "best" eval thing from past research
-def evaluate_f1(pred,ground_truth_data,metadata,post_process,eval_type):
+def evaluate_f1(pred,ground_truth_data,metadata,post_process,eval_type,f1_source=None):
     assert eval_type in ['max','avg'], "evaluation is done either max or average"
-    user_summaries = ground_truth_data['user_summary']
+    if f1_source is None or f1_source =='user_summary':
+
+        user_summaries = ground_truth_data['user_summary']
+    elif f1_source =='user_score':
+        user_summaries = ground_truth_data['user_score']
     scores = []
     for user_summary in user_summaries:
-        if post_process == 'binarize_top_k':
+        if post_process in ['binarize_top_k','summary_gen_no_up']:
             if len(pred)!= len(user_summary):
-                user_summary = user_summary[metadata['picks']]
+                user_summary = user_summary[metadata['positions']]
             scores.append(f1_score(user_summary,pred))
         elif post_process == 'summary_gen':
             scores.append(f1_score(user_summary,pred))
