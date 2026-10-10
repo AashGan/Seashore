@@ -74,4 +74,16 @@ def batch_text_sum_visual(batch):
 
     return {"visual_features":torch.tensor(visual_features), "text_labels": textual_features
             ,"gtscore": gtscore,"mask": mask,"data_points" : data_points}
-    
+
+def batch_text_sum_multi(batch):
+    visual_features = [torch.from_numpy(x["frame_features"]) for x in batch]
+    textual_features = [(x["text_summary"]) for x in batch]
+    gtscore_xum = [torch.from_numpy(x['gtscore_xum']) for x in gtscore_xum]
+    data_points = [x["data_point"] for x in batch]
+    lengths = torch.tensor([len(x) for x in gtscore])
+    max_length = max(lengths)
+    visual_features = pad_sequence(visual_features, batch_first=True, padding_value=0)
+    gtscore_xum_pad = torch.stack([torch.nn.functional.pad(t,(0,max_length-t.size(1)),value=-1) for t in gtscore_xum])
+    mask = torch.arange(gtscore_xum_pad.size(2))[None,:]<lengths[:,None]
+    return {"visual_features":torch.tensor(visual_features), "text_labels": textual_features
+                ,"gtscore_xum": gtscore_xum_pad,"mask": mask,"data_points" : data_points}
