@@ -8,6 +8,8 @@ import torch.nn.functional as F
 # Code for custom loss functions proposed across the research
 # Key points: Each of these needs to have *args, to maintain cross compatability with other loss functions
 # Also maintain a structure like: predictions, gtscore and then any other additional arguments
+
+# TODO: Check if a different logic for the sequences would help it 
 def masked_mse(
     predictions: torch.tensor, gtscore: torch.tensor, mask: torch.BoolTensor = None
 ):
@@ -94,26 +96,20 @@ class WeightedBinaryCrossEntropy(VideoLoss):
         Returns:
             Binary Cross Entropy weigthed according to #keyframes/N.
         """
-        pred = model_predictions
-        target = keyframe_labels
+        pred = model_predictions.reshape(-1) # I have to flatten this to then mask 
+        target = keyframe_labels.reshape(-1) # I have to flatten this to then mask 
 
         assert pred.shape == target.shape
 
-        if len(pred.shape) == 1:
-            pred = torch.unsqueeze(pred, 0)
-            target = torch.unsqueeze(target, 0)
-
         if keyframe_mask is not None:
-            assert keyframe_mask.shape[0] == pred.shape[0]
+            keyframe_mask = keyframe_mask.reshape(-1)
             pred = pred[keyframe_mask]
             target = target[keyframe_mask]
 
-        w = target.sum() / target.shape[0]
-
-        keyframe_component = w * target * pred.log()
-        background_component = (1 - w) * (1 - target) * (1 - pred).log()
-
-        return -(keyframe_component + background_component).mean()
+        w_key = target.sum() / target.shape[0]
+        w_back = 1-w_key
+        loss = F.binary_cross_entropy(pred,target,weight=torch.tensor([w_key,w_back]))
+        return loss
 
     
     def get_required_inputs(self) -> set[str]:
@@ -121,12 +117,13 @@ class WeightedBinaryCrossEntropy(VideoLoss):
 
 
 class FeatureReconstructionLoss(VideoLoss):
-    def __init__(self) -> None:
-        self.optional_inputs = [self.FEATURE_MASK]
-
+    def __init__(self,top_k) -> None:
+        self.optional_inputs = [self.KEYFRAME_MASK]
+        self._top_k = top_k
     
     def __call__(
         self,
+        model_predictions: torch.Tensor,
         projection: torch.Tensor,
         frame_features: torch.Tensor,
         keyframe_mask: torch.Tensor | None = None,
@@ -142,32 +139,32 @@ class FeatureReconstructionLoss(VideoLoss):
         """
         pred = projection
         target = frame_features
-
-        assert pred.shape == target.shape
-
         if len(pred.shape) == 2:
             pred = torch.unsqueeze(pred, 0)
             target = torch.unsqueeze(target, 0)
-
         if keyframe_mask is not None:
-            assert pred.shape[0] == keyframe_mask.shape[0]
+            model_predictions = model_predictions.masked_fill_(~keyframe_mask,-1e9) 
+        _,top_k_indices = torch.topk(model_predictions,self.self._top_k)
+        B_idx = torch.arange(pred.shape[0], device=pred.device)[:, None]
+        topk_vectors_orig = target[B_idx, top_k_indices]
+        topk_vectors_recon = pred[B_idx, top_k_indices]
+        assert pred.shape == target.shape
 
-            pred = pred[keyframe_mask]
-            target = target[keyframe_mask]
+    
 
-        diff = target - pred
+        diff = topk_vectors_orig - topk_vectors_recon
         dist = torch.linalg.norm(diff, ord=2, dim=-1)
 
         return dist.mean()
 
     
     def get_required_inputs(self) -> set[str]:
-        return {self.FRAME_FEATURES, self.PREDICTED_FEATURES}
+        return {self.KEYFRAME_SCORES,self.FRAME_FEATURES, self.PREDICTED_FEATURES}
 
 
 class DiversityLoss(VideoLoss):
     def __init__(self) -> None:
-        self.optional_inputs = [self.FEATURE_MASK]
+        self.optional_inputs = [self.KEYFRAME_MASK]
 
     
     def __call__(
@@ -187,18 +184,17 @@ class DiversityLoss(VideoLoss):
 
         if len(pred.shape) == 2:
             pred = torch.unsqueeze(pred, 0)
-
+        p_norm = F.normalize(pred, p=2, dim=-1)
+        sim_matrix = torch.matmul(p_norm, p_norm.transpose(-2,-1))
         if keyframe_mask is not None:
             assert pred.shape[0] == keyframe_mask.shape[0]
+            keyframe_mask =keyframe_mask.unsqueeze(1) & keyframe_mask.unsqueeze(2)
+            sim_matrix =sim_matrix.masked_fill(~keyframe_mask,0)
 
-            pred = pred[keyframe_mask]
-
-        p_norm = F.normalize(pred, p=2, dim=-1)
-        sim_matrix = torch.mm(p_norm, p_norm.t())
-
-        mask = ~torch.eye(sim_matrix.shape[0], dtype=torch.bool, device=pred.device)
-        m_off_diag = sim_matrix * mask
-
+        mask = ~torch.eye(sim_matrix.shape[1], dtype=torch.bool, device=pred.device)
+        m_off_diag = sim_matrix.masked_fill(~mask,0)
+        if keyframe_mask is not None:
+            mask = (~keyframe_mask & mask.unsqueeze(0))
         return m_off_diag.sum() / mask.sum()
 
     
@@ -226,31 +222,84 @@ class MeanSquaredError(VideoLoss):
         Returns:
             Binary Cross Entropy loss.
         """
-        pred = model_predictions
-        target = keyframe_labels
 
+        pred = model_predictions.reshape(-1) # I have to flatten this to then mask 
+        target = keyframe_labels.reshape(-1) # I have to flatten this to then mask 
+        
         assert pred.shape == target.shape
 
-        if len(pred.shape) == 1:
-            pred = torch.unsqueeze(pred, 0)
-            target = torch.unsqueeze(target, 0)
-
         if keyframe_mask is not None:
-            assert pred.shape[0] == keyframe_mask.shape[0]
-
+            keyframe_mask = keyframe_mask.reshape(-1)
             pred = pred[keyframe_mask]
             target = target[keyframe_mask]
 
-        error = pred - target
-        sq_error = torch.square(error)
-
-        return sq_error.mean()
+        
+        return F.mse_loss(pred,target)
 
     
     def get_required_inputs(self) -> set[str]:
         return {self.KEYFRAME_SCORES, self.KEYFRAME_LABELS}
 
+class BinaryCrossEntropyMulti(VideoLoss):
+    def __init__(self) -> None:
+            self.optional_inputs = [self.KEYFRAME_MASK]
 
+    def __call__(self,model_predictions: torch.Tensor,
+            keyframe_labels: torch.Tensor,
+            keyframe_mask: torch.Tensor | None = None,):
+        """
+        Args:
+            model_predictions: predicted score in [0, 1]
+            keyframe_labels: ground truth label shaped B x N x D in {0, 1}
+            keyframe_mask: boolean inclusion mask
+
+        Returns:
+            Binary Cross Entropy loss optimized for all sequences.
+                """
+        pred = model_predictions
+        target = keyframe_labels
+        assert len(target.shape)>2, "This loss is designed to optimize multiple gt objectives at once"
+        repeats = target.shape[1]
+        pred = pred.repeat_interleave(repeats,dim=0)
+        target = target.reshape(-1)
+        pred = pred.reshape(-1)
+        if keyframe_mask is not None:
+            keyframe_mask = keyframe_mask.repeat_interleave(repeats,dim=0)
+            keyframe_mask = keyframe_mask.reshape(-1)
+            pred = pred[keyframe_mask]
+            target = target[keyframe_mask]
+        return F.binary_cross_entropy(pred,target)
+class MeanSquareErrorMulti(VideoLoss):
+    def __init__(self) -> None:
+            self.optional_inputs = [self.KEYFRAME_MASK]
+
+    def __call__(self,model_predictions: torch.Tensor,
+            keyframe_labels: torch.Tensor,
+            keyframe_mask: torch.Tensor | None = None,):
+        """
+        Args:
+            model_predictions: predicted score in [0, 1]
+            keyframe_labels: ground truth label shaped B x N x D in {0, 1}
+            keyframe_mask: boolean inclusion mask
+
+        Returns:
+            Binary Cross Entropy loss optimized for all sequences.
+                """
+        pred = model_predictions
+        target = keyframe_labels
+        if len(target.shape)<2:
+            target = target[None,:,:]
+        repeats = target.shape[1]
+        pred = pred.repeat_interleave(repeats,dim=0)
+        target = target.reshape(-1)
+        pred = pred.reshape(-1)
+        if keyframe_mask is not None:
+            keyframe_mask = keyframe_mask.repeat_interleave(repeats,dim=0)
+            keyframe_mask = keyframe_mask.reshape(-1)
+            pred = pred[keyframe_mask]
+            target = target[keyframe_mask]
+        return F.mse_loss(pred,target)
+    
 class BinaryCrossEntropy(VideoLoss):
     def __init__(self) -> None:
         self.optional_inputs = [self.KEYFRAME_MASK]
@@ -271,24 +320,19 @@ class BinaryCrossEntropy(VideoLoss):
         Returns:
             Binary Cross Entropy loss.
         """
-        pred = model_predictions
-        target = keyframe_labels
+        pred = model_predictions.reshape(-1) # I have to flatten this to then mask 
+        target = keyframe_labels.reshape(-1) # I have to flatten this to then mask 
 
         assert pred.shape == target.shape
 
-        if len(pred.shape) == 1:
-            pred = torch.unsqueeze(pred, 0)
-            target = torch.unsqueeze(target, 0)
-
         if keyframe_mask is not None:
-            assert keyframe_mask.shape[0] == pred.shape[0]
+            keyframe_mask = keyframe_mask.reshape(-1)
             pred = pred[keyframe_mask]
             target = target[keyframe_mask]
 
-        keyframe_component = target * pred.log()
-        background_component = (1 - target) * (1 - pred).log()
+        
 
-        return -(keyframe_component + background_component).mean()
+        return F.binary_cross_entropy(pred,target)
 
     
     def get_required_inputs(self) -> set[str]:
@@ -323,7 +367,7 @@ class LengthRegularizationLoss(VideoLoss):
                     mean_preds = masked_pred.sum(dim=1)/valid_sums
                     return torch.abs(mean_preds-self.__summary_ratio).mean()
 
-        return torch.abs(torch.mean(pred) - self.__summary_ratio)
+        return torch.abs(torch.mean(pred.squeeze()) - self.__summary_ratio)
 
     
     def get_required_inputs(self) -> set[str]:
@@ -435,7 +479,9 @@ class WeightedLossStack(VideoLoss):
 
 loss_dict = {"mse": F.mse_loss, "bce": F.binary_cross_entropy}
 loss_dict_stacker = {"weighted_bce": WeightedBinaryCrossEntropy,"bce":BinaryCrossEntropy,
-                     'feature_recon_loss':FeatureReconstructionLoss,'diversity':DiversityLoss,'mse':MeanSquaredError,'leng_reg':LengthRegularizationLoss}
+                     'feature_recon_loss':FeatureReconstructionLoss,'diversity':DiversityLoss,
+                     'mse':MeanSquaredError,'leng_reg':LengthRegularizationLoss,
+                     'bce_multi':BinaryCrossEntropyMulti,'mse_multi':MeanSquareErrorMulti}
 if __name__ == "__main__":
     #    clipit_loss = WeightedLossStack(
     #        [WeightedBinaryCrossEntropy(), FeatureReconstructionLoss(), DiversityLoss()],

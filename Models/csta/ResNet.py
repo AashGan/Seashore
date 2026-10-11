@@ -456,7 +456,8 @@ class CSTA_ResNet(nn.Module):
                 raise
 
     def forward(self, x):
-        if len(x.size) == 3:
+
+        if len(x.shape) == 3:
             x = x.expand(3,-1,-1).unsqueeze(0)
         n_frame = x.shape[2]
         
