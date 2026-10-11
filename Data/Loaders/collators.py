@@ -25,7 +25,7 @@ def batch_collate_fn(batch):
     data_points   : list
         The original data_point objects (unchanged)
     """
-    features = [torch.from_numpy(x["features"]) for x in batch]
+    features = [torch.from_numpy(x["visual_features"]) for x in batch]
     gtscore = [torch.from_numpy(x["gtscore"]) for x in batch]
     data_points = [x["data_point"] for x in batch]
     lengths = torch.tensor([len(x) for x in gtscore])
@@ -34,7 +34,7 @@ def batch_collate_fn(batch):
     mask = torch.arange(gtscore.size(1))[None, :]< lengths[:, None]
     
 
-    return {"features":torch.tensor(features),"gtscore": torch.tensor(gtscore),"mask": mask,"data_points" : data_points}
+    return {"visual_features":torch.tensor(features),"gtscore": torch.tensor(gtscore),"mask": mask,"data_points" : data_points}
 
 
 def batch_text_visual(batch):
@@ -42,7 +42,7 @@ def batch_text_visual(batch):
     Similar to the above function, but it pads visual and textual features
     """
 
-    visual_features = [torch.from_numpy(x["frame_features"]) for x in batch]
+    visual_features = [torch.from_numpy(x["visual_features"]) for x in batch]
     textual_features = [torch.from_numpy(x["text_features"]) for x in batch]
     gtscore = [torch.from_numpy(x["gtscore"]) for x in batch]
     data_points = [x["data_point"] for x in batch]
@@ -63,7 +63,7 @@ def batch_text_sum_visual(batch):
     Similar to the above function, but it pads visual and textual features
     """
 
-    visual_features = [torch.from_numpy(x["frame_features"]) for x in batch]
+    visual_features = [torch.from_numpy(x["visual_features"]) for x in batch]
     textual_features = [x["text_summary"] for x in batch]
     gtscore = [torch.from_numpy(x["gtscore"]) for x in batch]
     data_points = [x["data_point"] for x in batch]
@@ -76,14 +76,19 @@ def batch_text_sum_visual(batch):
             ,"gtscore": gtscore,"mask": mask,"data_points" : data_points}
 
 def batch_text_sum_multi(batch):
-    visual_features = [torch.from_numpy(x["frame_features"]) for x in batch]
-    textual_features = [(x["text_summary"]) for x in batch]
-    gtscore_xum = [torch.from_numpy(x['gtscore_xum']) for x in gtscore_xum]
+    visual_features = [torch.from_numpy(x["visual_features"]) for x in batch]
+    textual_features = [x["text_summary"] for x in batch]
+    gtscore_xum = [torch.from_numpy(x['gtscore']) for x in batch]
     data_points = [x["data_point"] for x in batch]
-    lengths = torch.tensor([len(x) for x in gtscore_xum])
+    lengths = torch.tensor([x.shape[1] for x in gtscore_xum])
+    print(lengths)
     max_length = max(lengths)
     visual_features = pad_sequence(visual_features, batch_first=True, padding_value=0)
     gtscore_xum_pad = torch.stack([torch.nn.functional.pad(t,(0,max_length-t.size(1)),value=-1) for t in gtscore_xum])
     mask = torch.arange(gtscore_xum_pad.size(2))[None,:]<lengths[:,None]
     return {"visual_features":torch.tensor(visual_features), "text_labels": textual_features
                 ,"gtscore": gtscore_xum_pad,"mask": mask,"data_points" : data_points}
+
+
+collate_dict = {'visual_feat':batch_collate_fn,'visual_text_feat':batch_text_visual,
+                'visual_feat_text_sum':batch_text_sum_visual,'multi_feat_text_sum':batch_text_sum_multi}
