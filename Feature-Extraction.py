@@ -6,7 +6,7 @@ import numpy as np
 import h5py
 import os
 from torchvision.models.feature_extraction import create_feature_extractor
-from torchvision.models import resnet50, ResNet50_Weights
+from torchvision.models import resnet50, ResNet50_Weights,googlenet,GoogLeNet_Weights
 from transformers import AutoProcessor, CLIPVisionModel,Siglip2VisionModel
 # This script is an example of the various feature extraction procedures we'd have to conduct for multiple datasets.
 
@@ -15,7 +15,8 @@ from transformers import AutoProcessor, CLIPVisionModel,Siglip2VisionModel
 # features:provided by the unction, user_summary: taken from metadata, user_score:taken from metadata, gtscore: generated from the downsampling factor, n_frames: taken from either metadata or from reading the video,
 # shot_bounds: either taken from the metadata, or provided by another function, positions, provided by the function
 
-
+def min_max_scale(arr):
+    return (arr-arr.min(axis=1,keepdims=True))/(arr.max(axis=1,keepdims=True)-arr.min(axis=1,keepdims=True))
 
 def run_feature_extractor_base(dataset_name,video_base_path,save_name):
     """
@@ -24,12 +25,12 @@ def run_feature_extractor_base(dataset_name,video_base_path,save_name):
     """
     # Creation of the feature extraction class objects
     # For pytorch models, newer versions seem to have a feature extractor class that can be used for feature extraction, we can use those for some models
-    model = resnet50(weights=ResNet50_Weights.IMAGENET1K_V1)
-    weights = ResNet50_Weights.DEFAULT
+    weights = ResNet50_Weights.IMAGENET1K_V1
+    model = resnet50(weights=weights)
     feature_extractor = create_feature_extractor(model, return_nodes=['avgpool'])
     preprocess = weights.transforms()
-    torch_extract = TorchVideoExtractor(fps = 2,model = feature_extractor,preprocessor = preprocess,
-                                        key='avgpool',batch_size = 300,device='cuda')
+    torch_extract = TorchVideoExtractor(fps = 1.5,model = feature_extractor,preprocessor = preprocess,
+                                        key='avgpool',batch_size = 300,device='cuda:0')
     
     if dataset_name =='summe':
         metadata_file = h5py.File('Data/Metadata/summe_metadata.h5','r')
@@ -45,7 +46,7 @@ def run_feature_extractor_base(dataset_name,video_base_path,save_name):
                 user_score = np.mean(user_summary,axis=0)
                 gt = user_score[positions]
                 assert len(features) == len(gt)
-                f.create_dataset(f'{video}/features',data=features)
+                f.create_dataset(f'{video}/frame_features',data=features)
                 f.create_dataset(f'{video}/gtscore',data=gt)
                 f.create_dataset(f'{video}/shot_bounds',data=shot_bounds)
                 f.create_dataset(f'{video}/positions',data=positions)
@@ -63,9 +64,11 @@ def run_feature_extractor_base(dataset_name,video_base_path,save_name):
                     n_frames =metadata_file[video]['n_frames'][()]
                     user_summary = metadata_file[video]['user_summary'][...]
                     user_score = metadata_file[video]['user_score'][...]
+                    user_score = min_max_scale(user_score)
                     gt = user_score.mean(axis=0)[positions]
+                    assert len(features) == len(positions)
                     assert len(features) == len(gt)
-                    f.create_dataset(f'{video}/features',data=features)
+                    f.create_dataset(f'{video}/frame_features',data=features)
                     f.create_dataset(f'{video}/gtscore',data=gt)
                     f.create_dataset(f'{video}/shot_bounds',data=shot_bounds)
                     f.create_dataset(f'{video}/positions',data=positions)
@@ -86,7 +89,7 @@ def run_feature_extractor_hf(dataset_name,video_base_path,save_name):
     # processor = AutoProcessor.from_pretrained("openai/clip-vit-base-patch32")
     model= Siglip2VisionModel.from_pretrained("google/siglip2-base-patch16-naflex")
     processor = AutoProcessor.from_pretrained("google/siglip2-base-patch16-naflex")
-    torch_extract = HFVideoExtractor(fps = 2,model = model,preprocessor = processor,
+    torch_extract = HFVideoExtractor(fps = 1.5,model = model,preprocessor = processor,
                                     pooler_att='pooler_output',batch_size = 300,device='cuda')
     if dataset_name =='summe':
         metadata_file = h5py.File('Data/Metadata/summe_metadata.h5','r')
@@ -101,9 +104,10 @@ def run_feature_extractor_hf(dataset_name,video_base_path,save_name):
                 user_summary = metadata_file[video]['user_summary'][...]
                 user_score = np.mean(user_summary,axis=0)
                 gt = user_score[positions]
+                
                 assert len(features) == len(gt)
-                f.create_dataset(f'{video}/features',data=features)
-                f.create_dataset(f'{video}/gtscore',data=features)
+                f.create_dataset(f'{video}/frame_features',data=features)
+                f.create_dataset(f'{video}/gtscore',data=gt)
                 f.create_dataset(f'{video}/shot_bounds',data=shot_bounds)
                 f.create_dataset(f'{video}/positions',data=positions)
                 f.create_dataset(f'{video}/n_frames',data=n_frames)
@@ -120,10 +124,11 @@ def run_feature_extractor_hf(dataset_name,video_base_path,save_name):
                     n_frames =metadata_file[video]['n_frames'][()]
                     user_summary = metadata_file[video]['user_summary'][...]
                     user_score = metadata_file[video]['user_score'][...]
+                    user_score = min_max_scale(user_score)
                     gt = user_score.mean(axis=0)[positions]
                     assert len(features) == len(gt)
-                    f.create_dataset(f'{video}/features',data=features)
-                    f.create_dataset(f'{video}/gtscore',data=features)
+                    f.create_dataset(f'{video}/frame_features',data=features)
+                    f.create_dataset(f'{video}/gtscore',data=gt)
                     f.create_dataset(f'{video}/shot_bounds',data=shot_bounds)
                     f.create_dataset(f'{video}/positions',data=positions)
                     f.create_dataset(f'{video}/n_frames',data=n_frames)
@@ -135,6 +140,7 @@ def run_feature_extractor_hf(dataset_name,video_base_path,save_name):
 if __name__ == "__main__":
     #run_feature_extractor_base('summe','/home/aash/Datasets/summe','resnet_summe')
     #run_feature_extractor_hf('tvsum','/home/aash/Datasets/tvsum','clip_tvsum')
-    run_feature_extractor_hf('summe','/home/aash/Datasets/summe','siglip2_summe')
-    # run_feature_extractor_base('tvsum','/home/aash/Datasets/tvsum','resnet_tvsum')
-    # run_feature_extractor_base('summe','/home/aash/Datasets/summe','resnet_summe')
+    # run_feature_extractor_hf('tvsum','/home/aash/Datasets/tvsum','siglip2_tvsum')
+    # run_feature_extractor_hf('summe','/home/aash/Datasets/summe','siglip2_summe')
+    run_feature_extractor_base('tvsum','/home/aash/Datasets/tvsum','resnet_tvsum')
+    run_feature_extractor_base('summe','/home/aash/Datasets/summe','resnet_summe')

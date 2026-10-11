@@ -62,7 +62,7 @@ def generate_metadata_h5(division_rate=10,video_xum=None):
                 data_file.create_dataset(f'{video_name}/n_frames',data=total_frames)
                 data_file.create_dataset(f'{video_name}/positions',data=positions)
                 data_file.create_dataset(f'{video_name}/user_summary',data=vsum_hot_upsample)
-                data_file.create_dataset(f'{video_name}/user_score',data=vsum_hot_upsample.mean(axis=1))
+                data_file.create_dataset(f'{video_name}/user_score',data=vsum_hot_upsample.mean(axis=0))
                 data_file.create_dataset(f'{video_name}/text_summary',data=row['tsum'])
                 data_file.create_dataset(f'{video_name}/vsum_time_stamps',data=row['vsum'])
                 data_file.create_dataset(f'{video_name}/activitynet_video_id',data=row['video_id'])
@@ -107,7 +107,10 @@ def run_feature_extractor_base(video_base_path,save_name):
                 video_path = os.path.join(video_base_path,f'{file_path}.mkv')
             else:
                 raise "Error, no file found"
-            features,positions = torch_extract(video_path)
+            features,_ = torch_extract(video_path)
+            if len(features)>metadata_file[video]['user_summary'][...].shape[1]:
+                features = features[:len(metadata_file[video]['user_summary'][...].shape[1])]
+
             shot_bounds = metadata_file[video]['shot_bounds'][...] # TODO: Mathieu, adding another source for shot boundaries here could be nice
             n_frames = metadata_file[video]['n_frames'][()]
             user_summary = metadata_file[video]['user_summary'][...]
@@ -116,7 +119,7 @@ def run_feature_extractor_base(video_base_path,save_name):
             f.create_dataset(f'{video}/gtscore_xum',data=metadata_file[video]['gtscore_xum'][...])
             f.create_dataset(f'{video}/shot_bounds',data=shot_bounds)
             f.create_dataset(f'{video}/n_frames',data=n_frames)
-            f.create_dataset(f'{video}/positions',data=positions)
+            f.create_dataset(f'{video}/positions',data=metadata_file[video]['positions'][...])
             f.create_dataset(f'{video}/user_summary',data=user_summary)
             f.create_dataset(f'{video}/user_score',data=metadata_file[video]['user_score'][...])
             f.create_dataset(f'{video}/text_summary',data=metadata_file[video]['text_summary'][:])
@@ -147,7 +150,8 @@ def run_feature_extractor_hf(video_base_path,save_name):
             else:
                 raise "Error, no file found"
             features,positions = torch_extract(video_path)
-            features,positions = torch_extract(video_path)
+            if len(features)>metadata_file[video]['user_summary'][...].shape[1]:
+                features = features[:len(metadata_file[video]['user_summary'][...].shape[1])]
             shot_bounds = metadata_file[video]['shot_bounds'][...] # TODO: Mathieu, adding another source for shot boundaries here could be nice
             n_frames = metadata_file[video]['n_frames'][()]
             user_summary = metadata_file[video]['user_summary'][...]

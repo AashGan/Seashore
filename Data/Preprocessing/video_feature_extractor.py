@@ -4,6 +4,7 @@ import numpy as np
 import torch
 from transformers import AutoImageProcessor, AutoModel
 import cv2
+from PIL import Image
 
 def video_sampler_indices(video_path, target_fps,videoxum_flag = None):
     """
@@ -63,7 +64,7 @@ def video_sampler_indices(video_path, target_fps,videoxum_flag = None):
         # Use a small epsilon for floating point comparison robustness
         if frame_number in target_frames:
             # cv2.read() already returns frames as numpy.ndarray with dtype=uint8
-            downsampled_frames.append(frame)
+            downsampled_frames.append(Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)))
             sampled_frame_indices.append(frame_number)
 
         frame_number += 1
@@ -72,7 +73,7 @@ def video_sampler_indices(video_path, target_fps,videoxum_flag = None):
     cap.release()
 
     if downsampled_frames:
-        downsampled_frames_array = np.array(downsampled_frames)
+        downsampled_frames_array = downsampled_frames
         return downsampled_frames_array, sampled_frame_indices
     else:
         print("No frames were downsampled or extracted.")
@@ -104,22 +105,26 @@ class TorchVideoExtractor():
       self.fps = fps
       self.key = key
       self.videoxum_flag = kwargs.get('videoxum_flag',None)
+      self.model.eval()
+      self.model.to(self.device)
     def return_images(self,video_path):
       images,indices = video_sampler_indices(video_path,self.fps,self.videoxum_flag)
       return images,indices
     def process_and_return_embeddings(self,images):
-      self.model.eval()
-      self.model.to(self.device)
+      
       embeddings = []
       for i in range(0,len(images),self.batch_size):
-        batch = images[i:i+self.batch_size].copy()
-        inputs = self.preprocessor(torch.from_numpy(batch.transpose(0,3,1,2))) # Assumes that
+        batch = images[i:i+self.batch_size]
+        inputs = torch.stack([self.preprocessor(img) for img in batch]) # Assumes that
         with torch.no_grad():
           outputs = self.model(inputs.to(self.device))
         if self.key is not None:
           embeddings.append(outputs[self.key].to('cpu').flatten(1).numpy())
         else:
-          embeddings.append(outputs.to('cpu').flatten(1).squeeze().numpy())
+          outputs = outputs.to('cpu').flatten(1).squeeze()
+          if len(outputs.shape)<2:
+              outputs = outputs.unsqueeze(0)
+          embeddings.append(outputs.numpy())
       return embeddings
     def __call__(self,video_path):
         images,indices = self.return_images(video_path)
