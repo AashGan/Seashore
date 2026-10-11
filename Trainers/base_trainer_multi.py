@@ -48,10 +48,13 @@ class BaseTrainerVideoXUM(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         x_vision, y_text, y,video_key = batch['visual_features'], batch['text_labels'], batch['gtscores'],batch['data_point'] 
-        y_outputs, _ = self.model(x_vision,y_text)
+        y_output, _ = self.model(x_vision,y_text)
         y = y.to('cpu')
-        y_output = y_outputs['saliency_scores']
         dataset,video_index = video_key[0].split('/')
+        dataloader = self.trainer.val_dataloaders
+        dataset_obj = dataloader.dataset
+        positions = dataset_obj.get_positions(dataset,video_index)
+        metadata['positions'] = positions
         metadata = self.metadata_stores.get(dataset,video_index)
         ground_truth_data = self.metadata_stores.get_gt(dataset,video_index)
         eval_type = self.eval_type[dataset]
@@ -62,7 +65,7 @@ class BaseTrainerVideoXUM(pl.LightningModule):
             self.log('spearman',result_dict['spearman'],prog_bar = True,on_epoch=True)
         elif self.eval_criterion == 'f1':
             f1 = process_and_route_single(y_output,y,metadata,ground_truth_data,eval_type,post_process,self.eval_criterion)
-            self.log('f1',f1)
+            self.log('f1',f1,on_epoch=True)
 
 
     def configure_optimizers(self):
@@ -105,8 +108,12 @@ class BaseTrainerMulti(pl.LightningModule):
         y_pred = self.model(x_vision,x_text)
         y = y_scores[''].to('cpu')
         dataset,video_index = video_key[0].split('/')
-        y_output = y_pred['saliency_scores']
+        y_output = y_pred['model_predictions']
         metadata = self.metadata_stores.get(dataset,video_index)
+        dataloader = self.trainer.val_dataloaders
+        dataset_obj = dataloader.dataset
+        positions = dataset_obj.get_positions(dataset,video_index)
+        metadata['positions'] = positions
         ground_truth_data = self.metadata_stores.get_gt(dataset,video_index)
         eval_type = self.eval_type[dataset]
         post_process = self.post_process_dict[dataset]
