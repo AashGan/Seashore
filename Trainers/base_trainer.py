@@ -53,7 +53,6 @@ class MetadataStore:
         elif "gtscore_xum" in group.keys():
             user_score = group['gtscore_xum'][...]
         else:
-            print('using gt score')
             user_score = group["gtscore"][...]
         user_summary = group["user_summary"][...]
         if len(user_summary.shape)<2:
