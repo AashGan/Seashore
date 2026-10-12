@@ -126,7 +126,7 @@ class MultiModalh5Loader(Dataset):
                file_name,included_keys,
                multi_obj=False,
                shuffler_obj:ShuffleComposer = None,
-               sampled_frames:int = None,normalize=True):
+               sampled_frames:int = None,normalize=False):
     with open(split_file,'r') as f:
           self.split_file = json.load(f)
     self.data_points = self.split_file[cross_val_idx][split_name]
@@ -171,6 +171,11 @@ class MultiModalh5Loader(Dataset):
         output_dict[key] = self.dataset_dict[dataset][video_index][key][()].decode("utf-8")
       else:
         output_dict[key] = self.dataset_dict[dataset][video_index][key][...]
+    if self.normalize:
+       for key in output_dict.keys():
+          if key.endswith("_features"):
+             output_dict[key] = output_dict[key] / (np.linalg.norm(output_dict[key]
+                                                                   , axis=-1, keepdims=True) + 1e-12)
     if self.sampled_frames:
           output_dict['visual_features'],output_dict['gtscore'] = subsample(output_dict['frame_features'],
                                                                            output_dict['gtscore'],
@@ -178,3 +183,6 @@ class MultiModalh5Loader(Dataset):
     if self.shuffler_obj is not None:
       output_dict['visual_features'] = self.shuffler_obj(output_dict['visual_features'])
     return output_dict
+
+
+dataset_obj_dict = {'unimodal_loader':MultiH5Loader,'multimodal_loader':MultiModalh5Loader}

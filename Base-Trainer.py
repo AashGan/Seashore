@@ -1,8 +1,7 @@
 from Trainers.base_trainer import BaseTrainer
 from Models.model_links import model_dict
-import torch
 import json
-from Data.Datasets import MultiH5Loader
+from Data.Datasets import dataset_obj_dict
 from Data.Datasets import ShuffleComposer
 from torch.utils.data import DataLoader
 import numpy as np
@@ -14,7 +13,7 @@ from pathlib import Path
 from Models.losses.loss_functions import loss_dict_stacker,WeightedLossStack
 from Data.Loaders.collators import collate_dict
 import csv
-
+import argparse
 def parse_and_return_json(json_path):
     with open(json_path,'r') as f:
         return json.load(f)
@@ -72,17 +71,18 @@ def run_train_base(config):
     leaderboard_id = model_configs.get('leaderboard_id',model_configs['model_name'])
     include_features = model_configs.get('include_features',False)
     # Data configs
+    dataset_obj = dataset_obj_dict[data_configs['loader_name']]
+    loader_params  = data_configs['loader_name']['params']
     data_split_path = data_configs['data_split_path']
+
     data_splits = parse_and_return_json(data_configs['data_split_path']) # This checks if we need to run val or cross val
-    
     dataset_name,split_type = parse_config_filepath(data_configs['data_split_path'])
     epochs = data_configs.get('epochs',15)
     learning_rate  = data_configs.get('lr',5e-5)
     shuffler_params = data_configs.get('shuffler_params',None)
     if shuffler_params is not None:
         shuffler_params = ShuffleComposer(shuffler_params)
-    multi_obj = data_configs.get('multi_obj',None)
-    sampled_frames = data_configs.get('sampled_frames',None)
+    sampled_frames = loader_params.get('sampled_frames',None)
     collate_type = data_configs.get('collate_type',None) #TODO: add the collation function variants when you get them running 
     batch_collate_fn = None
     if collate_type is not None:
@@ -109,9 +109,11 @@ def run_train_base(config):
     if len(data_splits)==1:
         print('Running Train Val Split')
         model = model_dict[model_name](**model_parameters)
-        train_dataset = MultiH5Loader(data_split_path,data_configs['train_split_name'],0,data_configs['feature_name'],
-                                      multi_obj=multi_obj,shuffler_obj=shuffler_params,sampled_frames=sampled_frames)
-        val_dataset = MultiH5Loader(data_split_path,data_configs['val_split_name'],0,data_configs['feature_name'])
+        loader_params['cross_val_idx'] = 0
+        loader_params['split_type'] = 'train'
+        train_dataset = dataset_obj(**loader_params)
+        loader_params['split_type'] = 'val'
+        val_dataset = dataset_obj(**loader_params)
         train_dataloader =  DataLoader(train_dataset,shuffle=True,collate_fn=batch_collate_fn,batch_size = batch_size)
         val_dataloader =  DataLoader(val_dataset,shuffle=False,batch_size = 1)
         #TODO: Adjust the lightning module to have the learning rate 
@@ -134,9 +136,11 @@ def run_train_base(config):
         for i in range(len(data_splits)):
 #TODO add a dict to make the multimodal dataset object work here  function here as well
             model = model_dict[model_name](**model_parameters)
-            train_dataset    = MultiH5Loader(data_split_path,data_configs['train_split_name'],i,data_configs['feature_name'],
-                                             multi_obj=multi_obj,shuffler_obj=shuffler_params,sampled_frames=sampled_frames)
-            val_dataset      = MultiH5Loader(data_split_path,data_configs['val_split_name'],i,data_configs['feature_name'])
+            loader_params['cross_val_idx'] = i
+            loader_params['split_type'] = 'train'
+            train_dataset = dataset_obj(**loader_params)
+            loader_params['split_type'] = 'val'
+            val_dataset = dataset_obj(**loader_params)
             train_dataloader = DataLoader(train_dataset,shuffle=True,collate_fn=batch_collate_fn,batch_size = batch_size)
             val_dataloader   = DataLoader(val_dataset,shuffle=False,batch_size = 1)
             lightning_module = BaseTrainer(model,train_dataset.included_dataset,eval_type,post_process_dict,learning_rate,criterion,False,eval_criterion)
@@ -147,7 +151,7 @@ def run_train_base(config):
                                             )
             trainer = pl.Trainer(max_epochs = epochs,  callbacks=[
             checkpoint
-        ],accelerator="gpu",precision="16",
+        ],accelerator="gpu",
     devices=1) 
             trainer.fit(lightning_module,train_dataloader,val_dataloader)
             best_score = trainer.validate(lightning_module,val_dataloader)[0][log_metric]
@@ -167,6 +171,8 @@ def run_train_base(config):
 
 
 if __name__ == "__main__":
-    config = 'Configs/train_pgl_sum_tvsum_can.json'
-    run_train_base(config)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("config_path", help="Provide the path to the configuration here")
+    args = parser.parse_args()
+    run_train_base(args.config)
         
