@@ -104,25 +104,26 @@ def run_train_base(config):
     # Meta configs
     save_top_k = meta_configs.get('save_top_k',0)
     device = meta_configs.get('device','cuda:0')
+    print('')
     # declaring model from parameters, dataset objects 
     if len(data_splits)==1:
         print('Running Train Val Split')
         model = model_dict[model_name](**model_parameters)
-        train_dataset = MultiH5Loader(data_splits,data_configs['train_split_name'],0,data_configs['feature_name'],
+        train_dataset = MultiH5Loader(data_split_path,data_configs['train_split_name'],0,data_configs['feature_name'],
                                       multi_obj=multi_obj,shuffler_obj=shuffler_params,sampled_frames=sampled_frames)
-        val_dataset = MultiH5Loader(data_splits,data_configs['val_split_name'],0,data_configs['feature_name'])
+        val_dataset = MultiH5Loader(data_split_path,data_configs['val_split_name'],0,data_configs['feature_name'])
         train_dataloader =  DataLoader(train_dataset,shuffle=True,collate_fn=batch_collate_fn,batch_size = batch_size)
         val_dataloader =  DataLoader(val_dataset,shuffle=False,batch_size = 1)
         #TODO: Adjust the lightning module to have the learning rate 
-        lightning_module = BaseTrainer(model,train_dataset.included_datasets,eval_type,post_process_dict,criterion,include_features,eval_criterion)
+        lightning_module = BaseTrainer(model,train_dataset.included_dataset,eval_type,post_process_dict,learning_rate,criterion,include_features,eval_criterion)
         checkpoint = ModelCheckpoint(
                                         monitor=eval_criterion,
                                         mode="max",
                                         save_top_k=save_top_k,
                                         )
-        trainer = pl.Trainer(max_epochs = epochs,precision=torch.float32,  callbacks=[
+        trainer = pl.Trainer(max_epochs = epochs,  callbacks=[
         checkpoint
-    ]) 
+    ],devices=1) 
         trainer.fit(lightning_module,train_dataloader,val_dataloader)
         best_score = checkpoint.best_model_score.item()
         print(f"Best validation {eval_criterion}: {best_score:.4f}")
@@ -146,7 +147,7 @@ def run_train_base(config):
                                             )
             trainer = pl.Trainer(max_epochs = epochs,  callbacks=[
             checkpoint
-        ],accelerator="gpu",
+        ],accelerator="gpu",precision="16",
     devices=1) 
             trainer.fit(lightning_module,train_dataloader,val_dataloader)
             best_score = trainer.validate(lightning_module,val_dataloader)[0][log_metric]
