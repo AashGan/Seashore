@@ -40,7 +40,6 @@ def upsample(score,positions,n_frames):
     
     if positions[-1] != n_frames:
         positions = np.concatenate([positions, [n_frames]])
-
     for i in range(len(positions) - 1):
         pos_left, pos_right = positions[i], positions[i + 1]
         if i == len(frame_init_scores):

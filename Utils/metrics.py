@@ -62,7 +62,8 @@ def generate_summary_no_upsample(score,shot_bounds):
     final_shot = shot_bounds[-1]
     final_max_length = int((final_shot[1] + 1) * 0.15)
     selected = knapSack(final_max_length, shot_lengths, shot_imp_scores, len(shot_lengths))
-    summary = np.zeros(final_shot[1] + 1, dtype=np.int8)
+    final_length = final_shot[1] if final_shot[1] == len(score) else final_shot[1] +(len(score)-final_shot[1])
+    summary = np.zeros(final_length, dtype=np.int8)
     for shot in selected:
         summary[shot_bounds[shot][0]:shot_bounds[shot][1] + 1] = 1
     return summary
@@ -131,20 +132,23 @@ def process_and_route_single(pred:torch.tensor,gt:torch.tensor,metadata:dict,gro
     pred = post_process_preds(pred,metadata,post_process) # Does the post-procesing based on type
     if metric =="corr":
         # Returns both Kendall and Spearman Correlation
-        return evaluate_correlation(pred,gt,ground_truth_data,eval_type)
+        return evaluate_correlation(pred,gt,ground_truth_data,eval_type,post_process,metadata['positions'])
     elif metric =="f1":
-        assert post_process in ['summary_gen','binarize_top_k'], "For F1 evaluation Post processing must be summary_gen, or binarize_top_k"
+        assert post_process in ['summary_gen','binarize_top_k',"summary_gen_no_up"], "For F1 evaluation Post processing must be summary_gen, or binarize_top_k"
         return evaluate_f1(pred,ground_truth_data,metadata,post_process,eval_type)
     else:
         raise ValueError('provide an eval type: [corr,f1]')
     
 
-def evaluate_correlation(pred,gt,ground_truth_data,eval_type):
+def evaluate_correlation(pred,gt,ground_truth_data,eval_type,post_process,positions):
     if eval_type == 'gt':
         return {"kendall":eval_kendall(pred,gt),"spearman":eval_spearman(pred,gt)}
     if eval_type == "user_score":
         user_score = ground_truth_data['user_score']
-        # We do list comprenehsion since tvsum has multiple user scores 
+        if post_process  in ['binarize_top_k','summary_gen_no_up','none'] and len(user_score[0])!=len(pred):
+            if positions is not None:
+                user_score = user_score[:,positions]
+        # We do list comprenehsion as we always assume user_score to be a list
         all_kendalls = [eval_kendall(pred,gt_i) for gt_i in user_score]
         all_spearmans = [eval_spearman(pred,gt_i) for gt_i in user_score]
 
