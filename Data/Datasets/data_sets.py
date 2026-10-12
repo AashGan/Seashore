@@ -69,7 +69,11 @@ class MultiH5Loader(Dataset):
       self.dataset_dict[dataset]= h5py.File(data_paths,'r')
 
   def get_positions(self,dataset_name,video_index):
-     return self.dataset_dict[dataset_name][video_index]['positions'][...]
+     if 'positions' in self.dataset_dict[dataset_name][video_index].keys():
+        
+      return self.dataset_dict[dataset_name][video_index]['positions'][...]
+     else:
+        return None
   def __getitem__(self,idx):
     data_point = self.data_points[idx]
     dataset,video_index = data_point.split('/')
@@ -122,7 +126,7 @@ class MultiModalh5Loader(Dataset):
                file_name,included_keys,
                multi_obj=False,
                shuffler_obj:ShuffleComposer = None,
-               sampled_frames:int = None):
+               sampled_frames:int = None,normalize=True):
     with open(split_file,'r') as f:
           self.split_file = json.load(f)
     self.data_points = self.split_file[cross_val_idx][split_name]
@@ -133,6 +137,7 @@ class MultiModalh5Loader(Dataset):
     self.sampled_frames = sampled_frames
     self.shuffler_obj = shuffler_obj
     self.multi_obj = multi_obj
+    self.normalize = normalize
 
 
   def __len__(self):
@@ -143,7 +148,13 @@ class MultiModalh5Loader(Dataset):
       for dataset in included_datasets:
         data_paths = os.path.join(base_file_path,f'multi_modal',f'{self.file_name}_{dataset}.h5')
         self.dataset_dict[dataset]= h5py.File(data_paths,'r')
-
+  
+  def get_positions(self,dataset_name,video_index):
+       if 'positions' in self.dataset_dict[dataset_name][video_index].keys():
+          
+        return self.dataset_dict[dataset_name][video_index]['positions'][...]
+       else:
+          return None
   def __getitem__(self,idx):
     data_point = self.data_points[idx]
     dataset,video_index = data_point.split('/')
