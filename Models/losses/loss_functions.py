@@ -269,6 +269,8 @@ class BinaryCrossEntropyMulti(VideoLoss):
             pred = pred[keyframe_mask]
             target = target[keyframe_mask]
         return F.binary_cross_entropy(pred,target)
+    def get_required_inputs(self) -> set[str]:
+                return {self.KEYFRAME_SCORES, self.KEYFRAME_LABELS}
 class MeanSquareErrorMulti(VideoLoss):
     def __init__(self) -> None:
             self.optional_inputs = [self.KEYFRAME_MASK]
@@ -299,7 +301,8 @@ class MeanSquareErrorMulti(VideoLoss):
             pred = pred[keyframe_mask]
             target = target[keyframe_mask]
         return F.mse_loss(pred,target)
-    
+    def get_required_inputs(self) -> set[str]:
+            return {self.KEYFRAME_SCORES, self.KEYFRAME_LABELS}
 class BinaryCrossEntropy(VideoLoss):
     def __init__(self) -> None:
         self.optional_inputs = [self.KEYFRAME_MASK]
