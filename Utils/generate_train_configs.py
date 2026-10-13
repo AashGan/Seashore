@@ -1,25 +1,34 @@
+
 import json
+#dataset_obj_dict = {'unimodal_loader':MultiH5Loader,'multimodal_loader':MultiModalh5Loader}
+#collate_dict = {'visual_feat':batch_collate_fn,'visual_text_feat':batch_text_visual,'visual_feat_text_sum':batch_text_sum_visual,'multi_feat_text_sum':batch_text_sum_multi}
+#model_dict = {'casum':CA_SUM,'ctv_raw':ctv_functional,'mars':MARs,'pgl_sum':PGL_SUM,'vasnet':VASNet,'sl_module':SL_module,'sumgda':SUM_GDA,'csta':set_model,'vtsum_blip_tt':VTSum_BLIP_TT,'vtsum_blip_tt_ca':VTSum_BLIP_TT_CA,'sd_vsum':SD_VSum}
 
-
-def generate_json(config_path):
+def generate_json(config_path,model_name,dataset,split_type):
     data_configs= {
-        'data_split_path':'Splits/tvsum_can_1.json',
-        'batch_size':1,
-        'feature_name': 'googlenet',
-        'train_split_name':'train',
-        'val_split_name':'val'
+        'batch_size':200,
+        'collate_type':"visual_feat",
+        'lr':5e-5,
+        'epochs':30,
+        'shuffle_params': {},
+        'loader_config': {'name':'unimodal_loader',
+                          'params':{'split_file':'Splits/mrhisum_reduced_split.json',
+                                    'multi_obj':False,'feature_name':'inception_3'}}
     }
     eval_configs  = {
 
-    'eval_type':{'tvsum':'user_score'},
-    'post_process_dict':{'tvsum':'upsample'},
+    'eval_type':{'mrhisum':'gt'},
+    'post_process_dict':{'mrhisum':'none'},
     'eval_criterion': 'corr',
-    'log_metric':'kendall'
+    'log_metric':'kendall',
+    'eval_dataset': dataset,
+    'split_type':split_type
     }
     model_configs = {
-        'model_name':'pgl_sum',
-        'model_parameter_path':'Configs/model_configs/pgl_sum/pgl_sum_tvsum.json',
-        'loss_function':'mse'
+        'model_name':f'{model_name}',
+        'model_parameter_path':f'Configs/model_configs/{model_name}/{model_name}_{dataset}.json',
+        'loss_function':{'mse':{"params":{}}},
+        'leaderboard_id':f'{model_name}_average_gt'
     }
     meta_configs = {
         'save_top_k':0,
@@ -31,5 +40,8 @@ def generate_json(config_path):
 
 
 if __name__ == "__main__":
-    config_path = 'Configs/train_pgl_sum_tvsum_can.json'
-    generate_json(config_path)
+    model_name = 'pgl_sum'
+    dataset = 'mrhisum'
+    split_type = 'orig'
+    config_path = f'Configs/train_{model_name}_{dataset}_{split_type}.json'
+    generate_json(config_path,model_name,dataset,split_type)
