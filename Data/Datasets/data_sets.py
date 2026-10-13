@@ -44,13 +44,13 @@ def subsample(features,gt,sampled_frames):
   return features, gt
 
 class MultiH5Loader(Dataset):
-  def __init__(self,split_file,split_name,cross_val_idx,
+  def __init__(self,split_file,split_type,cross_val_idx,
                feature_name,multi_obj=False,
                shuffler_obj:ShuffleComposer = None,
                sampled_frames:int = None,normalize=True):
     with open(split_file,'r') as f:
       self.split_file = json.load(f)
-    self.data_points = self.split_file[cross_val_idx][split_name]
+    self.data_points = self.split_file[cross_val_idx][split_type]
     self.included_dataset = list({sample.split('/',1)[0] for sample in self.data_points})
     print(self.included_dataset)
     self.feature_name = feature_name
@@ -122,14 +122,14 @@ class MultiModalh5Loader(Dataset):
   """ Multi-Modal h5-loader, we assume a custom name assigned to the h5 file
   Alongside this, we can assume any kind of features included, the feature name can be included in the included_keys arg
   """
-  def __init__(self,split_file,split_name,cross_val_idx,
+  def __init__(self,split_file,split_type,cross_val_idx,
                file_name,included_keys,
                multi_obj=False,
                shuffler_obj:ShuffleComposer = None,
                sampled_frames:int = None,normalize=False):
     with open(split_file,'r') as f:
           self.split_file = json.load(f)
-    self.data_points = self.split_file[cross_val_idx][split_name]
+    self.data_points = self.split_file[cross_val_idx][split_type]
     self.included_dataset = list({sample.split('/',1)[0] for sample in self.data_points})
     self.file_name = file_name
     self._create_data_dict(self.included_dataset)
@@ -167,10 +167,12 @@ class MultiModalh5Loader(Dataset):
     output_dict['gtscore'] = gtscore
     output_dict['data_point'] = data_point
     for key in self.included_keys:
-      if isinstance(self.dataset_dict[dataset][video_index][key], bytes):
+      if isinstance(self.dataset_dict[dataset][video_index][key][()], bytes):
         output_dict[key] = self.dataset_dict[dataset][video_index][key][()].decode("utf-8")
       else:
         output_dict[key] = self.dataset_dict[dataset][video_index][key][...]
+      if key =='frame_features':
+         output_dict['visual_features'] = self.dataset_dict[dataset][video_index][key][...]
     if self.normalize:
        for key in output_dict.keys():
           if key.endswith("_features"):
