@@ -33,38 +33,43 @@ class BaseTrainerVideoXUM(pl.LightningModule):
         self.loss_weights = loss_weights 
 
     def training_step(self, batch, batch_idx):
-        x_vision, y_text, y_scores = batch['visual_features'], batch['text_labels'], batch['gtscores']
+        x_vision, y_text, y_scores = batch['visual_features'], batch['text_labels'], batch['gtscore']
         mask = None
         if "mask" in batch.keys():
             mask = batch['mask']
-        y_output, y_text_output = self.model(x_vision,y_text,mask)
-        text_loss = y_text_output.loss
-        vision_loss = self.criterion(y_output,y_scores)
+        print('input_shape:',x_vision.shape)
+        print('gtscore shape',y_scores.shape)
+        if "mask" in batch.keys():
+            print('mask_shape:',mask.shape)
+        y_output = self.model(x_vision,y_text,mask)
+        text_loss = y_output['text_decoder_output'].loss
+        vision_loss = self.criterion(y_output['model_predictions'].float(),y_scores.float(),mask)
         total_loss = self.loss_weights[0]*vision_loss + self.loss_weights[1]*text_loss
-        self.log('train_vision_loss',vision_loss)
-        self.log('train_text_loss',text_loss)
-        self.log('train_total_loss',total_loss)
-        return total_loss
+        self.log('train_vision_loss',vision_loss,on_epoch=True)
+        self.log('train_text_loss',text_loss,on_epoch=True)
+        self.log('train_total_loss',total_loss,on_epoch=True)
+        return total_loss.float()
 
     def validation_step(self, batch, batch_idx):
-        x_vision, y_text, y,video_key = batch['visual_features'], batch['text_labels'], batch['gtscores'],batch['data_point'] 
-        y_output, _ = self.model(x_vision,y_text)
+        x_vision, y_text, y,video_key = batch['visual_features'], batch['text_labels'], batch['gtscore'],batch['data_points'] 
+        y_output = self.model(x_vision,y_text)
         y = y.to('cpu')
         dataset,video_index = video_key[0].split('/')
+        metadata = self.metadata_stores.get(dataset,video_index)
+        ground_truth_data = self.metadata_stores.get_gt(dataset,video_index)
         dataloader = self.trainer.val_dataloaders
         dataset_obj = dataloader.dataset
         positions = dataset_obj.get_positions(dataset,video_index)
         metadata['positions'] = positions
-        metadata = self.metadata_stores.get(dataset,video_index)
-        ground_truth_data = self.metadata_stores.get_gt(dataset,video_index)
+        
         eval_type = self.eval_type[dataset]
         post_process = self.post_process_dict[dataset]
         if self.eval_criterion =='corr':
-            result_dict = process_and_route_single(y_output,y,metadata,ground_truth_data,eval_type,post_process,self.eval_criterion)
+            result_dict = process_and_route_single(y_output['model_predictions'],y,metadata,ground_truth_data,eval_type,post_process,self.eval_criterion)
             self.log('kendall',result_dict['kendall'],prog_bar = True,on_epoch=True)
             self.log('spearman',result_dict['spearman'],prog_bar = True,on_epoch=True)
         elif self.eval_criterion == 'f1':
-            f1 = process_and_route_single(y_output,y,metadata,ground_truth_data,eval_type,post_process,self.eval_criterion)
+            f1 = process_and_route_single(y_output['model_predictions'],y,metadata,ground_truth_data,eval_type,post_process,self.eval_criterion)
             self.log('f1',f1,on_epoch=True)
 
 
@@ -92,7 +97,7 @@ class BaseTrainerMulti(pl.LightningModule):
         self.lr = lr  
 
     def training_step(self, batch, batch_idx):
-        x_vision, x_text, y_scores = batch['visual_features'], batch['text_features'], batch['gtscores']
+        x_vision, x_text, y_scores = batch['visual_features'], batch['text_features'], batch['gtscore']
         visual_mask = None
         text_mask = None 
         if "frame_mask" in batch.keys():
@@ -104,7 +109,7 @@ class BaseTrainerMulti(pl.LightningModule):
         self.log('train_loss', loss)
         return loss 
     def validation_step(self,batch,batch_idx):
-        x_vision, x_text, y_scores, video_key = batch['visual_features'], batch['text_features'], batch['gtscores'], batch['data_point'] 
+        x_vision, x_text, y_scores, video_key = batch['visual_features'], batch['text_features'], batch['gtscore'], batch['data_points'] 
         y_pred = self.model(x_vision,x_text)
         y = y_scores[''].to('cpu')
         dataset,video_index = video_key[0].split('/')

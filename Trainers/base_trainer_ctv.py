@@ -34,7 +34,7 @@ class BaseTrainerCTV(pl.LightningModule):
         self.alpha = alpha
         self.use_unif = use_unif
     def training_step(self,batch,batch_idx):
-        x, _ = batch['features'] ,  batch['gtscores']
+        x, _ = batch['features'] ,  batch['gtscore']
         proj, y_preds = self.model(x)
         laln, lunif, lunif_fv, lunq = self.criterion(x,proj,y_preds,self.ratio_s,self.ratio_k1)
 
@@ -43,7 +43,7 @@ class BaseTrainerCTV(pl.LightningModule):
         return laln.mean() +self.alpha*lunif.mean()
 
     def validation_step(self, batch, batch_idx):
-        x, y, video_key = batch['features'] ,  batch['gtscores'],batch['data_point']
+        x, y, video_key = batch['features'] ,  batch['gtscore'],batch['data_points']
         proj, y_preds = self.model(x)
         y_output = self.pred_criterion(x,proj,y_preds,self.ratio_s,self.ratio_k1,self.use_unif,self.use_unq)
         dataset,video_index = video_key[0].split('/')
