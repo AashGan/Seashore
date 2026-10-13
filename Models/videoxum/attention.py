@@ -52,20 +52,21 @@ class Attention(nn.Module):
         
 
         if attention_mask is not None:
-          attention_mask = attention_mask.masked_fill(attention_mask == False, -1e5)
-          attention_mask = attention_mask.masked_fill(attention_mask == True, 0)
-          attention = attention + attention_mask
+            if len(attention_mask.shape)!=4:
+                attention_mask = attention_mask[:, None, None, :]  # (B, 1, 1, S)
 
+            attention = attention.masked_fill(~attention_mask, -1e9)
+        #   attention_mask = attention_mask.masked_fill(attention_mask == False, -1e5)
+        #   attention_mask = attention_mask.masked_fill(attention_mask == True, 0)
+        #   attention = attention + attention_mask
         attention = attention.softmax(dim=-1)
         attention = self.attn_drop(attention)
 
         x = attention @ v
-
         x = (
             x.transpose(1, 2)
             .reshape(B, N, C)
         )
-
         x = self.proj(x)
         x = self.proj_drop(x)
 

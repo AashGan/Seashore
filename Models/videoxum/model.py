@@ -52,14 +52,9 @@ class VTSum_BLIP_TT(nn.Module):
       video_embeddings = video_embeddings + position_embeddings
 
       # temporal transformer
-      video_mask_expand = None
-      if video_mask is not None:
-        video_mask_expand = video_mask[:, None, None, :]
-
-      video_embeddings = self.tt(video_embeddings, video_mask_expand)
+     
+      video_embeddings = self.tt(video_embeddings, video_mask)
       video_embeddings = video_embeddings + position_embeddings
-      if video_mask is not None:
-        del video_mask_expand
       # vsum decoder
       saliency_scores = self.vsum_head(video_embeddings)
       text = self.tokenizer(
@@ -95,12 +90,9 @@ class VTSum_BLIP_TT(nn.Module):
         video_embeddings = video_embeddings + position_embeddings
 
         # temporal transformer
-        video_mask_expand = None
-        if video_mask is not None:
-          video_mask_expand = video_mask[:, None, None, :]
-        video_embeddings = self.tt(video_embeddings, video_mask_expand)
+
+        video_embeddings = self.tt(video_embeddings, video_mask)
         video_embeddings = video_embeddings + position_embeddings
-        del video_mask_expand
         # vsum decoder
         saliency_scores = self.vsum_head(video_embeddings)
 
@@ -171,12 +163,8 @@ class VTSum_BLIP_TT_CA(VTSum_BLIP_TT):
     video_embeddings = video_embeddings + position_embeddings
 
     # temporal transformer
-    video_mask_expand = None
-    if video_mask is not None:
-      video_mask_expand = video_mask[:, None, None, :]
-    video_embeddings = self.tt(video_embeddings, video_mask_expand)
+    video_embeddings = self.tt(video_embeddings, video_mask)
     video_embeddings = video_embeddings + position_embeddings
-    del video_mask_expand
 
     # local attention
     video_len = video_embeddings.size(1)
@@ -186,19 +174,16 @@ class VTSum_BLIP_TT_CA(VTSum_BLIP_TT):
         <= self.kernel_size
     ).to(video_embeddings.device)
     if video_mask is None:
-      video_mask = torch.ones(video_embeddings.shape[:2], dtype=torch.bool)
+      video_mask = torch.ones(video_embeddings.shape[:2], dtype=torch.bool,device=video_embeddings.device)
 
     combined_mask = (
     video_mask[:, None, None, :]
     & local_mask[None, None, :, :]
     )
-
     video_embeddings = self.local_atten_head(video_embeddings, combined_mask)
 
     # vsum decoder
     saliency_scores = self.vsum_head(video_embeddings)
-    num_frame = saliency_scores.size(-1)
-    saliency_scores = saliency_scores.reshape(-1, num_frame)
     # text decoder
     text = self.tokenizer(
         tsum_labels, padding='longest',
@@ -229,12 +214,8 @@ class VTSum_BLIP_TT_CA(VTSum_BLIP_TT):
         video_embeddings = video_embeddings + position_embeddings
 
         # temporal transformer
-        video_mask_expand = None
-        if video_mask is not None:
-          video_mask_expand = video_mask[:, None, None, :]
-        video_embeddings = self.tt(video_embeddings, video_mask_expand)
+        video_embeddings = self.tt(video_embeddings, video_mask)
         video_embeddings = video_embeddings + position_embeddings
-        del video_mask_expand
         if video_mask is None:
           video_mask = torch.ones(video_embeddings.shape[:2], dtype=torch.bool)
         video_len = video_embeddings.size(1)
@@ -247,6 +228,8 @@ class VTSum_BLIP_TT_CA(VTSum_BLIP_TT):
                         video_mask[:, None, None, :]
                         & local_mask[None, None, :, :]
                         )
+        
+        print(combined_mask)
         video_embeddings = self.local_atten_head(video_embeddings, combined_mask)
         saliency_scores = self.vsum_head(video_embeddings)
         model_kwargs = {"encoder_hidden_states": video_embeddings,
