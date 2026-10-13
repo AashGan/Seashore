@@ -18,13 +18,6 @@ def parse_and_return_json(json_path):
     with open(json_path,'r') as f:
         return json.load(f)
 
-def parse_config_filepath(json_path):
-    """
-    Returns: Dataset Name, Split Type 
-    """
-    processed_path = json_path.split(".")[0].split('/')[-1] # This should return the file path
-    processed_path = processed_path.split("_")
-    return processed_path[0] ,processed_path[1]
 
 def write_to_leaderboard(result,model_name,dataset_name,criterion,eval_type,post_process_type,split_type):
     """ Creating a leaderboard based on different models, datasets, criterion and eval types
@@ -71,12 +64,11 @@ def run_train_base(config):
     leaderboard_id = model_configs.get('leaderboard_id',model_configs['model_name'])
     include_features = model_configs.get('include_features',False)
     # Data configs
-    dataset_obj = dataset_obj_dict[data_configs['loader_name']]
-    loader_params  = data_configs['loader_name']['params']
-    data_split_path = data_configs['data_split_path']
+    dataset_obj = dataset_obj_dict[data_configs['loader_config']['name']]
+    loader_params  = data_configs['loader_config']['params']
 
-    data_splits = parse_and_return_json(data_configs['data_split_path']) # This checks if we need to run val or cross val
-    dataset_name,split_type = parse_config_filepath(data_configs['data_split_path'])
+    data_splits = parse_and_return_json(loader_params['split_file']) # This checks if we need to run val or cross val
+    dataset_name,split_type = eval_configs['eval_dataset'],eval_configs['split_type']
     epochs = data_configs.get('epochs',15)
     learning_rate  = data_configs.get('lr',5e-5)
     shuffler_params = data_configs.get('shuffler_params',None)
@@ -111,7 +103,7 @@ def run_train_base(config):
         model = model_dict[model_name](**model_parameters)
         loader_params['cross_val_idx'] = 0
         loader_params['split_type'] = 'train'
-        train_dataset = dataset_obj(**loader_params)
+        train_dataset = dataset_obj(**loader_params,shuffler_obj=shuffler_params)
         loader_params['split_type'] = 'val'
         val_dataset = dataset_obj(**loader_params)
         train_dataloader =  DataLoader(train_dataset,shuffle=True,collate_fn=batch_collate_fn,batch_size = batch_size)
@@ -172,7 +164,7 @@ def run_train_base(config):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("config_path", help="Provide the path to the configuration here")
+    parser.add_argument("--config_path", help="Provide the path to the configuration here")
     args = parser.parse_args()
-    run_train_base(args.config)
+    run_train_base(args.config_path)
         
