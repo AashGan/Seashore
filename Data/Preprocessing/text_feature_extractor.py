@@ -48,10 +48,11 @@ class InstructionTunerFeatures():
     """ 
     Class for instruction tuner style decoder (LLMVS), assume a Jinja style formatting and input
     """
-    def __init__(self,model, processor, system_instruction,example_text=None,embedding_style ="query_output_maxpool", max_tokens = 77):
+    def __init__(self,model, processor, system_instruction,example_text=None,embedding_style ="query_output",pooling_type='max', max_tokens = 77):
         self.model = model
         self.processor = processor 
         self.embedding_style =  embedding_style 
+        self.pooling_type = pooling_type
         self.system_prompt = self._create_system_message(system_instruction,example_text)
         self.max_tokens = max_tokens
     def _create_system_message(self,system_message,example_text):
@@ -71,18 +72,29 @@ class InstructionTunerFeatures():
 
     def __call__(self, query):
         final_query = self.system_prompt.append({"role":"user","content":[{"type":"text","text":query}]})
-        if self.embedding_style == "query_output_maxpool":
+        if self.embedding_style == "query_output":
             exclusion_length = self._compute_exclusion_length(self.system_prompt)
         elif self.embedding_style == "output_maxpool":
-            exclusion_length = None
+            exclusion_length = 0
+        else:
+            exclusion_length = 0 
         final_query = self.processor.apply_chat_template(final_query,tokenize=True,
                 return_tensors="pt",
                 add_generation_prompt=True,)
         if exclusion_length is None:
             exclusion_length = final_query["input_ids"].shape[-1]
         with torch.inference_mode():
-            generated_output = self.model.generate(**final_query.to(self.model.device), max_new_tokens = self.max_tokens, do_sample=False)
-        output_embeddings = generated_output.hidden_state
+            generated_output = self.model.generate(**final_query.to(self.model.device), max_new_tokens = self.max_tokens, 
+                                                   do_sample=False, return_dict_in_generate=True,output_hidden_states=True)
+        output_embeddings = torch.cat([step[-1] for step in generated_output.hidden_states],dim=1).squeeze().to('cpu')
+        # Get the output based on removing the prompt
+        output_embeddings = output_embeddings[exclusion_length:]
+        if self.pooling_type == "max":
+            return torch.max(output_embeddings,dim=0)
+        elif self.pooling_type == "max":
+                return torch.mean(output_embeddings,dim=0)
+        else:
+            raise NotImplementedError
 
 
 
