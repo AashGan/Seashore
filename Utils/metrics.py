@@ -8,7 +8,7 @@ import torch
 #--------------------------------------------Summary Generation-----------------------------------------------------------------------------
     
 
-def generate_summary_single(shot_bound,score,n_frames,positions,return_shot_info = False):
+def generate_summary_single(shot_bound,score,n_frames,positions,return_shot_info = False,max_length = 0.15):
     frame_init_scores = score
     frame_scores = np.zeros(n_frames, dtype=np.float32)
     if positions.dtype != int:
@@ -33,7 +33,7 @@ def generate_summary_single(shot_bound,score,n_frames,positions,return_shot_info
 
     # Select the best shots using the knapsack implementation
     final_shot = shot_bound[-1]
-    final_max_length = int((final_shot[1] + 1) * 0.15)
+    final_max_length = int((final_shot[1] + 1) * max_length)
 
     selected = knapSack(final_max_length, shot_lengths, shot_imp_scores, len(shot_lengths))
 
@@ -46,7 +46,7 @@ def generate_summary_single(shot_bound,score,n_frames,positions,return_shot_info
         return shot_lengths, shot_imp_scores,selected,summary
     return summary
 #TODO: look up a better way to do the summary generation without upsampling
-def generate_summary_no_upsample(score,shot_bounds):
+def generate_summary_no_upsample(score,shot_bounds,max_length = 0.15):
     if len(score) != shot_bounds[-1][-1]+1: 
         positions = np.arange(0,len(score))
         step = 5
@@ -60,7 +60,7 @@ def generate_summary_no_upsample(score,shot_bounds):
         shot_imp_scores.append((frame_scores[shot[0]:shot[1] + 1].mean()).item())
     # Select the best shots using the knapsack implementation
     final_shot = shot_bounds[-1]
-    final_max_length = int((final_shot[1] + 1) * 0.15)
+    final_max_length = int((final_shot[1] + 1) * max_length)
     selected = knapSack(final_max_length, shot_lengths, shot_imp_scores, len(shot_lengths))
     final_length = final_shot[1] if final_shot[1] == len(score) else final_shot[1] +(len(score)-final_shot[1])
     summary = np.zeros(final_length, dtype=np.int8)
@@ -108,7 +108,7 @@ def eval_average(preds,gts):
 
 # A function that routes different evaluation based on the inputs 
 
-def post_process_preds(pred,metadata,post_process):
+def post_process_preds(pred,metadata,post_process,selection_percentage=0.15):
     positions = metadata['positions']
     n_frames = metadata['n_frames']
     shot_bound = metadata['shot_bounds']
@@ -117,19 +117,21 @@ def post_process_preds(pred,metadata,post_process):
     elif post_process == "upsample":
         return upsample(pred,positions,n_frames)
     elif post_process == "summary_gen":
-        return generate_summary_single(shot_bound,pred,n_frames,positions)
+        return generate_summary_single(shot_bound,pred,n_frames,positions,max_length= selection_percentage)
     elif post_process == "binarize_top_k":
-        return binarize_top_percent(pred)
+        return binarize_top_percent(pred,selection_percentage)
     elif post_process == "summary_gen_no_up":
-        return generate_summary_no_upsample(pred,shot_bound)
+        return generate_summary_no_upsample(pred,shot_bound,selection_percentage)
     else:
         raise ValueError('provide an eval type: [none,upsample,summary_gen]')
 
 def process_and_route_single(pred:torch.tensor,gt:torch.tensor,metadata:dict,ground_truth_data:dict,
-                             eval_type:str,post_process:str = "upsample",f1_source:str= None,metric='corr'):
+                             eval_type:str,post_process:str = "upsample",f1_source:str= None,metric='corr',**kwargs):
+
+    selection_percentage = kwargs.get('selection_percentage',0.15)
     pred = pred.to('cpu').squeeze().numpy()
     gt = gt.to('cpu').squeeze().numpy()
-    pred = post_process_preds(pred,metadata,post_process) # Does the post-procesing based on type
+    pred = post_process_preds(pred,metadata,post_process,selection_percentage) # Does the post-procesing based on type
     if metric =="corr":
         # Returns both Kendall and Spearman Correlation
         return evaluate_correlation(pred,gt,ground_truth_data,eval_type,post_process,metadata['positions'])
@@ -155,9 +157,14 @@ def evaluate_correlation(pred,gt,ground_truth_data,eval_type,post_process,positi
         return {"kendall":np.mean(all_kendalls),"spearman":np.mean(all_spearmans)}
     elif eval_type == "user_summary":
         user_score = ground_truth_data['user_summary']
+        if post_process == "none":
+
         # We do list comprenehsion since all of them have multiple summaries
-        all_kendalls = [eval_kendall(pred,gt_i) for gt_i in user_score]
-        all_spearmans = [eval_spearman(pred,gt_i) for gt_i in user_score]
+            all_kendalls = [eval_kendall(pred,gt_i[positions]) for gt_i in user_score]
+            all_spearmans = [eval_spearman(pred,gt_i[positions]) for gt_i in user_score]
+        else:
+            all_kendalls = [eval_kendall(pred,gt_i) for gt_i in user_score]
+            all_spearmans = [eval_spearman(pred,gt_i) for gt_i in user_score]
 
         return {"kendall":np.mean(all_kendalls),"spearman":np.mean(all_spearmans)}
     else:
@@ -168,7 +175,6 @@ def evaluate_correlation(pred,gt,ground_truth_data,eval_type,post_process,positi
 def evaluate_f1(pred,ground_truth_data,metadata,post_process,eval_type,f1_source=None):
     assert eval_type in ['max','avg'], "evaluation is done either max or average"
     if f1_source is None or f1_source =='user_summary':
-
         user_summaries = ground_truth_data['user_summary']
     elif f1_source =='user_score':
         user_summaries = ground_truth_data['user_score']
