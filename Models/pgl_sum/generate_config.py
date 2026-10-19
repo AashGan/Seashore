@@ -2,8 +2,8 @@ import json
 import os
 
 def generate_json(save_path):
-    parameter_dict = {"input_size":1024, 
-                      "output_size":1024, 
+    parameter_dict = {"input_size":2048, 
+                      "output_size":2048, 
                       "freq":10000,
                         "pos_enc":"absolute",
                  "num_segments":4, 
@@ -17,7 +17,8 @@ if __name__ == "__main__":
     directory = 'Configs/model_configs/pgl_sum'
     if not os.path.exists(directory):
         os.makedirs(directory,exist_ok=True)
-    save_name = 'pgl_sum_tvsum.json'
+    dataset = 'videoxum'
+    save_name = f'pgl_sum_{dataset}.json'
     save_path = os.path.join(directory,save_name)
     print(save_path)
     generate_json(save_path)

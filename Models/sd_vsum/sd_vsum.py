@@ -3,6 +3,10 @@ import torch.nn as nn
 from .attention import CrossAttention
 
 
+import torch
+import torch.nn as nn
+
+
 class SD_VSum(nn.Module):
     def __init__(self, input_size=512, text_size=512, output_size=512, pos_enc=True,
                  heads=8):
@@ -26,7 +30,7 @@ class SD_VSum(nn.Module):
 
         # =========== Transformer ===========
         transformer_kwargs = {
-            'batch_first': False,
+            'batch_first': True,
         }
         self.transformer = nn.Transformer(input_size, **transformer_kwargs)
 
@@ -44,9 +48,9 @@ class SD_VSum(nn.Module):
         y = self.norm_y(y)
 
         # ========= Transformer =============
-        y = self.transformer(y.squeeze(), y.squeeze())
+        y = self.transformer(y, y)
         y = self.linear_layer(y)
         y = self.sigmoid(y)
         #y = y.view(1, -1)
 
-        return {'model_predictions':y}
+        return {'model_predictions':y.squeeze()}
