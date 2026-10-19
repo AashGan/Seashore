@@ -167,12 +167,13 @@ class MultiModalh5Loader(Dataset):
     output_dict['gtscore'] = gtscore
     output_dict['data_point'] = data_point
     for key in self.included_keys:
+      if key =='frame_features':
+               output_dict['visual_features'] = self.dataset_dict[dataset][video_index][key][...]
       if isinstance(self.dataset_dict[dataset][video_index][key][()], bytes):
         output_dict[key] = self.dataset_dict[dataset][video_index][key][()].decode("utf-8")
       else:
         output_dict[key] = self.dataset_dict[dataset][video_index][key][...]
-      if key =='frame_features':
-         output_dict['visual_features'] = self.dataset_dict[dataset][video_index][key][...]
+      
     if self.normalize:
        for key in output_dict.keys():
           if key.endswith("_features"):
