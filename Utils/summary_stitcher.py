@@ -2,10 +2,12 @@ import cv2
 import ffmpeg
 import os 
 import h5py
+from fractions import Fraction
+import numpy as np
 def create_annotator_summary(save_path, input_video, annotator_idx, fps,
                              frame_ranges):
     if not os.path.exists(save_path):
-        os.mkdir(save_path)
+        os.makedirs(save_path)
     for i, (start_frame, end_frame) in enumerate(frame_ranges, 1):
         outfile = os.path.join(save_path, f"Annotator_{annotator_idx}_clip_{i:03d}.mp4")
         start = start_frame / fps
@@ -23,6 +25,36 @@ def create_annotator_summary(save_path, input_video, annotator_idx, fps,
             .overwrite_output()
             .run()
         )
+
+def create_annotator_summary_joint(save_path,input_video,annotator_idx,fps,frame_ranges):
+    if not os.path.exists(save_path):
+            os.makedirs(save_path)
+    clips = []
+    outfile = os.path.join(save_path, f"Annotator_{annotator_idx}_complete.mp4")
+    assert fps!=0, "Fps cannot be zero"
+    for start_frame, end_frame in frame_ranges:
+        start = start_frame / fps
+        duration = (end_frame - start_frame + 1) / fps
+
+        clip = ffmpeg.input(input_video, ss=start, t=duration)
+        clips.append((clip.video, clip.audio))
+
+# Concatenate all selected video and audio streams
+    streams = [stream for pair in clips for stream in pair]
+    joined = ffmpeg.concat(*streams, v=1, a=1)
+
+    (
+        joined
+        .output(
+            outfile,
+            vcodec="libx264",
+            acodec="aac",
+            preset="fast",
+            crf=18,
+        )
+        .overwrite_output()
+        .run()
+    )
 # TODO: Add a notebook/script that allows you to do this a bit more easily.
 def test_annotator_summary():
     video_name = 'video_1'
@@ -62,6 +94,52 @@ def run_video_anno_summe():
             create_annotator_summary(save_path, video_path, i+1, fps, all_shots)
 
 
+def select_top_k(score,rate=0.175):
+    k = int((rate * len(score)))
+    binary_score = np.zeros_like(score)
+    binary_score[np.argsort(score)[-k:]] = 1
+    return binary_score
+
+def read_fps_with_ffmpeg(input_video):
+    """read fps when cv2 fails to read"""
+    probe = ffmpeg.probe(input_video)
+
+    video_stream = next(
+        s for s in probe["streams"]
+        if s["codec_type"] == "video"
+    )
+
+    fps = float(Fraction(video_stream["avg_frame_rate"]))
+    return fps
+    
+def run_video_tvsum(base_video_path,h5_path,overall_path,style='separate_clips'):
+    dataset = h5py.File(h5_path)
+    for video_name in list(dataset.keys()):
+        print(f'video: {video_name}')
+        if os.path.exists(f'{overall_path}/{video_name}'):
+            continue
+        video_path = os.path.join(base_video_path,f'{video_name}.mp4')
+        print(f'doing video: {video_path}')
+        fps = read_fps_with_ffmpeg(video_path)
+        print(fps)
+        
+        save_path = f'{overall_path}/{video_name}'
+        if style =='separate_clips':
+            for i, user_summary in enumerate(dataset[video_name]['user_score'][...]):
+                user_summary = select_top_k(user_summary)
+                all_shots = convert_array_to_index_tuples(user_summary)
+                create_annotator_summary(save_path, video_path, i+1, fps, all_shots)
+        elif style =='complete':
+            for i, user_summary in enumerate(dataset[video_name]['user_score'][...]):
+                user_summary = select_top_k(user_summary)
+                print(sum(user_summary))
+                all_shots = convert_array_to_index_tuples(user_summary)
+                print(all_shots)
+                create_annotator_summary_joint(save_path, video_path, i+1, fps, all_shots)
+
     
 if __name__ == "__main__":
-    run_video_anno_summe()
+    #run_video_anno_summe()
+    video_path = "C:/Datasets/tvsum"
+    h5_path = "Data/Metadata/tvsum_metadata.h5"
+    run_video_tvsum(video_path,h5_path,'test','complete')
