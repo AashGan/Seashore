@@ -30,6 +30,10 @@ def create_annotator_summary_joint(save_path,input_video,annotator_idx,fps,frame
     if not os.path.exists(save_path):
             os.makedirs(save_path)
     clips = []
+    probe = ffmpeg.probe(input_video)
+    has_audio = any(
+    stream["codec_type"] == "audio"
+    for stream in probe["streams"])
     outfile = os.path.join(save_path, f"Annotator_{annotator_idx}_complete.mp4")
     assert fps!=0, "Fps cannot be zero"
     for start_frame, end_frame in frame_ranges:
@@ -37,24 +41,35 @@ def create_annotator_summary_joint(save_path,input_video,annotator_idx,fps,frame
         duration = (end_frame - start_frame + 1) / fps
 
         clip = ffmpeg.input(input_video, ss=start, t=duration)
-        clips.append((clip.video, clip.audio))
+        if has_audio:
+            clips.append((clip.video, clip.audio))
+        else:
+            clips.append((clip.video,))
 
 # Concatenate all selected video and audio streams
-    streams = [stream for pair in clips for stream in pair]
-    joined = ffmpeg.concat(*streams, v=1, a=1)
-
-    (
-        joined
-        .output(
-            outfile,
-            vcodec="libx264",
-            acodec="aac",
-            preset="fast",
-            crf=18,
+    try:
+        streams = [stream for pair in clips for stream in pair]
+        joined = ffmpeg.concat(*streams, v=1, a=1 if has_audio else 0)
+        output_options = {
+        "vcodec": "libx264",
+        "preset": "fast",
+        "crf": 18,
+    }
+        if has_audio:
+            output_options["acodec"] = "aac"
+        out,err = (
+            joined
+            .output(outfile,
+                **output_options
+            )
+            .overwrite_output()
+            .run()
         )
-        .overwrite_output()
-        .run()
-    )
+    except ffmpeg.Error as e:
+        print("FFmpeg error:")
+        print(e.stdout)
+        print(e.stderr)
+        print(lol)
 # TODO: Add a notebook/script that allows you to do this a bit more easily.
 def test_annotator_summary():
     video_name = 'video_1'
@@ -116,8 +131,6 @@ def run_video_tvsum(base_video_path,h5_path,overall_path,style='separate_clips')
     dataset = h5py.File(h5_path)
     for video_name in list(dataset.keys()):
         print(f'video: {video_name}')
-        if os.path.exists(f'{overall_path}/{video_name}'):
-            continue
         video_path = os.path.join(base_video_path,f'{video_name}.mp4')
         print(f'doing video: {video_path}')
         fps = read_fps_with_ffmpeg(video_path)
@@ -136,10 +149,37 @@ def run_video_tvsum(base_video_path,h5_path,overall_path,style='separate_clips')
                 all_shots = convert_array_to_index_tuples(user_summary)
                 print(all_shots)
                 create_annotator_summary_joint(save_path, video_path, i+1, fps, all_shots)
+def run_video_summe(base_video_path,h5_path,overall_path,style='separate_clips'):
+    dataset = h5py.File(h5_path)
 
+    for video_name in list(dataset.keys()):
+        print(f'video: {video_name}')
+        video_path = os.path.join(base_video_path,f'{video_name}.mp4')
+        print(f'doing video: {video_path}')
+        fps = read_fps_with_ffmpeg(video_path)
+        print(fps)
+        if os.path.exists(f'{overall_path}/{video_name}'):
+            continue
+        
+        save_path = f'{overall_path}/{video_name}'
+        if style =='separate_clips':
+            for i, user_summary in enumerate(dataset[video_name]['user_summary'][...]):
+
+                all_shots = convert_array_to_index_tuples(user_summary)
+                create_annotator_summary(save_path, video_path, i+1, fps, all_shots)
+        elif style =='complete':
+            for i, user_summary in enumerate(dataset[video_name]['user_summary'][...]):
+                print(sum(user_summary))
+                all_shots = convert_array_to_index_tuples(user_summary)
+                print(all_shots)
+                create_annotator_summary_joint(save_path, video_path, i+1, fps, all_shots)
     
 if __name__ == "__main__":
     #run_video_anno_summe()
+    video_path = "C:/Datasets/summe"
+    h5_path = "Data/Metadata/summe_metadata.h5"
+    run_video_summe(video_path,h5_path,'Results/summe','complete')
     video_path = "C:/Datasets/tvsum"
     h5_path = "Data/Metadata/tvsum_metadata.h5"
-    run_video_tvsum(video_path,h5_path,'test','complete')
+    run_video_tvsum(video_path,h5_path,'Results/tvsum','complete')
+    
