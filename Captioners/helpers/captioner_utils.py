@@ -3,15 +3,17 @@ from PIL import Image
 import tqdm
 from .video_helpers import *
 
-def run_image_wise_description(video_file_path,model,processor,message,truncation_rate = 5,max_new_tokens=75):
+def run_image_wise_description(video_file_path,model,processor,message,truncation_rate = 5,max_new_tokens=75,return_indices = False):
   frames,sampled_indices = read_video_and_batch(video_file_path)
-  generated_outputs = []
+  final_outputs = {}
   for i in range(0,len(frames),truncation_rate):
     sub_sampled_frames,indices = frames[i:i+truncation_rate],sampled_indices[i:i+truncation_rate]
     messages,lens = encode_batch_image_and_message(processor,sub_sampled_frames,message)
-    generated_output = forward_and_batch_decode(model,messages,lens,processor,max_new_tokens)
-    generated_outputs.append(generated_output)
-  return generated_outputs
+    generated_outputs = forward_and_batch_decode(model,messages,lens,processor,max_new_tokens)
+    final_outputs.update({f'frame_{j}':generated_output for generated_output,j  in zip(generated_outputs,range(i,i+truncation_rate))})
+  if return_indices:
+    return final_outputs,sampled_indices 
+  return final_outputs
 
 def run_frame_wise_description_gemma(video_file_path,model,processor,truncation_rate = 5,max_new_tokens=75):
   """ params: File_path; string of the video

@@ -34,6 +34,32 @@ def run_smolvlm(video_directory,model_name,save_directory,save_name = 'test',cap
     else:
            raise NotImplementedError
 
+def run_per_annotator_video_caption(base_video_directory,save_directory,save_name='per_annotator'):
+    model = AutoModelForMultimodalLM.from_pretrained( # Changed from AutoModelForVision2Seq
+            model_name,
+            device_map="auto" # Automatically map model to available devices (GPU if present)
+        )
+    processor = AutoProcessor.from_pretrained(model_name)
+    model.eval()
+    if not os.path.exists(save_directory):
+                os.makedirs(save_directory) 
+    video_list = os.listdir(base_video_directory)
+    all_captions = {}
+    for video in video_list:
+        video_captions = {}
+        annotator_list = os.listdir(video)
+        for annotator in annotator_list:
+            annotator_num = annotator.split('_')[1]
+            video_path = os.path.join(base_video_directory,video,annotator)
+            try:
+                generated_outputs = run_base_video_caption(video_path,model,processor,generic_video_message,1024)
+                generated_outputs = generated_outputs[0].split('Assistant: ')[-1]
+                video_captions[f'Annotator_{annotator_num}'] = generated_outputs
+            except:
+                    print(f'Error on video: {annotator}')
+        all_captions[video] = video_captions
+    with open(os.path.join(save_directory,save_name),'w') as f:
+          json.dump(all_captions,f)
 
 if __name__ == "__main__":
        video_directory = '/home/aash/Datasets/tvsum'
