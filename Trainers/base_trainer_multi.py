@@ -37,10 +37,7 @@ class BaseTrainerVideoXUM(pl.LightningModule):
         mask = None
         if "mask" in batch.keys():
             mask = batch['mask']
-        print('input_shape:',x_vision.shape)
-        print('gtscore shape',y_scores.shape)
-        if "mask" in batch.keys():
-            print('mask_shape:',mask.shape)
+
         y_output = self.model(x_vision,y_text,mask)
         text_loss = y_output['text_decoder_output'].loss
         vision_loss = self.criterion(y_output['model_predictions'].float(),y_scores.float(),mask)
@@ -65,6 +62,7 @@ class BaseTrainerVideoXUM(pl.LightningModule):
         eval_type = self.eval_type[dataset]
         post_process = self.post_process_dict[dataset]
         if self.eval_criterion =='corr':
+            
             result_dict = process_and_route_single(y_output['model_predictions'],y,metadata,ground_truth_data,eval_type,post_process,self.eval_criterion)
             self.log('kendall',result_dict['kendall'],prog_bar = True,on_epoch=True)
             self.log('spearman',result_dict['spearman'],prog_bar = True,on_epoch=True)
@@ -100,7 +98,7 @@ class BaseTrainerMulti(pl.LightningModule):
         x_vision, x_text, y_scores = batch['visual_features'], batch['text_features'], batch['gtscore']
         visual_mask = None
         text_mask = None 
-        if "frame_mask" in batch.keys():
+        if "visual_mask" in batch.keys():
             visual_mask = batch['visual_mask']
             text_mask = batch['text_mask']
 
@@ -111,7 +109,7 @@ class BaseTrainerMulti(pl.LightningModule):
     def validation_step(self,batch,batch_idx):
         x_vision, x_text, y_scores, video_key = batch['visual_features'], batch['text_features'], batch['gtscore'], batch['data_points'] 
         y_pred = self.model(x_vision,x_text)
-        y = y_scores[''].to('cpu')
+        y = y_scores.to('cpu')
         dataset,video_index = video_key[0].split('/')
         y_output = y_pred['model_predictions']
         metadata = self.metadata_stores.get(dataset,video_index)

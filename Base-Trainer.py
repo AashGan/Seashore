@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader
 import numpy as np
 import os
 import pytorch_lightning as pl
-from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning.callbacks import ModelCheckpoint,EarlyStopping
 from pytorch_lightning.loggers import CSVLogger
 from pathlib import Path
 from Models.losses.loss_functions import loss_dict_stacker,WeightedLossStack
@@ -64,6 +64,7 @@ def run_train_base(config):
     leaderboard_id = model_configs.get('leaderboard_id',model_configs['model_name'])
     include_features = model_configs.get('include_features',False)
     # Data configs
+    print(data_configs['loader_config']['name'])
     dataset_obj = dataset_obj_dict[data_configs['loader_config']['name']]
     loader_params  = data_configs['loader_config']['params']
 
@@ -95,8 +96,8 @@ def run_train_base(config):
     log_metric = eval_configs['log_metric']
     # Meta configs
     save_top_k = meta_configs.get('save_top_k',0)
-    device = meta_configs.get('device','cuda:0')
-    print('')
+    device = meta_configs.get('device',[1])
+    monitor = 'kendall' if eval_criterion == 'corr' else 'f1'
     # declaring model from parameters, dataset objects 
     if len(data_splits)==1:
         print('Running Train Val Split')
@@ -111,15 +112,16 @@ def run_train_base(config):
         #TODO: Adjust the lightning module to have the learning rate 
         lightning_module = BaseTrainer(model,train_dataset.included_dataset,eval_type,post_process_dict,learning_rate,criterion,include_features,eval_criterion)
         checkpoint = ModelCheckpoint(
-                                        monitor=eval_criterion,
+                                        monitor=log_metric,
                                         mode="max",
                                         save_top_k=save_top_k,
                                         )
-        trainer = pl.Trainer(max_epochs = epochs,  callbacks=[
+        early_stop = EarlyStopping(monitor=log_metric,patience=7,mode='max',strict = True,verbose=True)
+        trainer = pl.Trainer(max_epochs = epochs,  callbacks=[early_stop,
         checkpoint
-    ],devices=1) 
+    ],devices=[1]) 
         trainer.fit(lightning_module,train_dataloader,val_dataloader)
-        best_score = checkpoint.best_model_score.item()
+        best_score =  early_stop.best_score.detach().to('cpu').item()
         print(f"Best validation {eval_criterion}: {best_score:.4f}")
         result = best_score
     else:
@@ -130,23 +132,25 @@ def run_train_base(config):
             model = model_dict[model_name](**model_parameters)
             loader_params['cross_val_idx'] = i
             loader_params['split_type'] = 'train'
-            train_dataset = dataset_obj(**loader_params)
+            train_dataset = dataset_obj(**loader_params,shuffler_obj=shuffler_params)
             loader_params['split_type'] = 'val'
             val_dataset = dataset_obj(**loader_params)
             train_dataloader = DataLoader(train_dataset,shuffle=True,collate_fn=batch_collate_fn,batch_size = batch_size)
             val_dataloader   = DataLoader(val_dataset,shuffle=False,batch_size = 1)
             lightning_module = BaseTrainer(model,train_dataset.included_dataset,eval_type,post_process_dict,learning_rate,criterion,False,eval_criterion)
             checkpoint = ModelCheckpoint(
-                                            monitor=log_metric,
-                                            mode="max",
-                                            save_top_k=save_top_k,
-                                            )
-            trainer = pl.Trainer(max_epochs = epochs,  callbacks=[
-            checkpoint
-        ],accelerator="gpu",
-    devices=1) 
+                                                    monitor=log_metric,
+                                                    mode="max",
+                                                    save_top_k=save_top_k,
+                                                    )
+            early_stop = EarlyStopping(monitor=log_metric,patience=7,mode='max',strict = True,verbose=True)
+            trainer = pl.Trainer(max_epochs = epochs,  callbacks=[early_stop,
+                    checkpoint
+                ],devices=[1]) 
+            
             trainer.fit(lightning_module,train_dataloader,val_dataloader)
-            best_score = trainer.validate(lightning_module,val_dataloader)[0][log_metric]
+            
+            best_score =  early_stop.best_score.detach().to('cpu').item()
             print(f"Best validation for Split: {i+1} {eval_criterion}: {best_score:.4f}")
             split_scores.append(best_score)
             lightning_module.metadata_stores.close()
