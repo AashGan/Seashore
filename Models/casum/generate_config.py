@@ -2,8 +2,8 @@ import json
 import os
 
 def generate_json(save_path):
-    parameter_dict = {"input_size":2048, 
-                      "output_size":2048, 
+    parameter_dict = {"input_size":1024, 
+                      "output_size":1024, 
                       "block_size":60,
                         "positional_encoding":None}
     with open(save_path,'w') as f:
@@ -14,7 +14,7 @@ if __name__ == "__main__":
     directory = 'Configs/model_configs/casum'
     if not os.path.exists(directory):
         os.makedirs(directory,exist_ok=True)
-    dataset = 'videoxum'
+    dataset = 'mrhisum'
     save_name = f'casum_{dataset}.json'
     save_path = os.path.join(directory,save_name)
     generate_json(save_path)
