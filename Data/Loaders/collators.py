@@ -104,6 +104,28 @@ def batch_text_sum_multi(batch):
     return {"visual_features":torch.tensor(visual_features), "text_labels": textual_features
                 ,"gtscore": gtscore_xum_pad,"mask": mask,"data_points" : data_points}
 
+def batch_text_sum_single(batch):
+    """ The collator for VideoXUM basic feed without padding
+    """
+    visual_features = [torch.from_numpy(x["visual_features"]) for x in batch]
+    textual_features = [b"".join(x["text_summary"]).decode('utf-8') for x in batch]
+    gtscore_xum = [torch.from_numpy(x['gtscore']) for x in batch]
+    data_points = [x["data_point"] for x in batch]
+    visual_features = pad_sequence(visual_features, batch_first=True, padding_value=0)
+    return {"visual_features":torch.tensor(visual_features), "text_labels": textual_features
+                ,"gtscore": torch.stack(gtscore_xum),"data_points" : data_points}
+
+def batch_visual_multi(batch):
+    visual_features = [torch.from_numpy(x["visual_features"]) for x in batch]
+    gtscore_xum = [torch.from_numpy(x['gtscore']) for x in batch]
+    data_points = [x["data_point"] for x in batch]
+    lengths = torch.tensor([x.shape[1] for x in gtscore_xum])
+    max_length = max(lengths)
+    visual_features = pad_sequence(visual_features, batch_first=True, padding_value=0)
+    gtscore_xum_pad = torch.stack([torch.nn.functional.pad(t,(0,max_length-t.size(1)),value=-1) for t in gtscore_xum])
+    mask = torch.arange(gtscore_xum_pad.size(2))[None,:]<lengths[:,None]
+    return {"visual_features":torch.tensor(visual_features), "gtscore": gtscore_xum_pad,"mask": mask,"data_points" : data_points}
+
 def batch_multi_gt_feat_text(batch):
     """
     Duplicate text and video features based on size of the GT
@@ -144,4 +166,5 @@ def custom_videoxum_collator(batch):
 
 collate_dict = {'visual_feat':batch_collate_fn,'visual_text_feat':batch_text_visual,
                 'visual_feat_text_sum':batch_text_sum_visual,'multi_feat_text_sum':batch_text_sum_multi,
-                'custom_sd_sum_collator':custom_videoxum_collator}
+                'custom_sd_sum_collator':custom_videoxum_collator,'visual_feat_multi':batch_visual_multi,
+                'single_gt_text_sum':batch_text_sum_single}
