@@ -13,6 +13,7 @@ if __name__ == "__main__":
     directory = 'Configs/model_configs/sumgda'
     if not os.path.exists(directory):
         os.makedirs(directory,exist_ok=True)
-    save_name = 'sumgda_tvsum.json'
+    dataset = 'mrhisum'
+    save_name = f'sumgda_{dataset}.json'
     save_path = os.path.join(directory,save_name)
     generate_json(save_path)

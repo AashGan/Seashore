@@ -17,7 +17,8 @@ if __name__ == "__main__":
     directory = 'Configs/model_configs/pgl_sum'
     if not os.path.exists(directory):
         os.makedirs(directory,exist_ok=True)
-    save_name = 'pgl_sum_tvsum.json'
+    dataset = 'summe'
+    save_name = f'pgl_sum_{dataset}.json'
     save_path = os.path.join(directory,save_name)
     print(save_path)
     generate_json(save_path)

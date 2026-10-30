@@ -26,6 +26,7 @@ if __name__ == "__main__":
     directory = 'Configs/model_configs/csta'
     if not os.path.exists(directory):
         os.makedirs(directory,exist_ok=True)
-    save_name = 'csta_tvsum'
+    dataset = 'summe'
+    save_name = f'csta_{dataset}'
     save_path = os.path.join(directory,save_name)
     generate_json(save_path)

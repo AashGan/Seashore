@@ -1,0 +1,6 @@
+model_name,eval_type,post_process_type,orig,result
+vtsum_blip_tt_ca_with_text_summary,gt,none,orig,0.19166110455989838
+vtsum_blip_tt_ca_with_text_summary,gt,none,orig,0.19097168743610382
+vtsum_blip_tt_ca_with_text_summary,user_score,none,orig,0.09799439460039139
+pgl_sum_average_gt,gt,none,orig,0.15846247971057892
+sl_module_average_gt,gt,none,orig,0.10543325543403625

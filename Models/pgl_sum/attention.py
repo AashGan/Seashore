@@ -55,8 +55,8 @@ class SelfAttention(nn.Module):
         i = i.repeat(pos.shape[0], 1)
 
         AP = torch.zeros(T, T, device=self.out.weight.device)
-        AP[pos, 2*i] = torch.sin(pos / freq ** ((2 * i) / d))
-        AP[pos, 2*i+1] = torch.cos(pos / freq ** ((2 * i) / d))
+        AP[pos.to(torch.int), 2*i.to(torch.int)] = torch.sin(pos / freq ** ((2 * i) / d))
+        AP[pos.to(torch.int), 2*i.to(torch.int)+1] = torch.cos(pos / freq ** ((2 * i) / d))
         return AP
 
     def getRelativePosition(self, T):

@@ -5,7 +5,8 @@ import os
 from helpers.messages import *
 import json
 import tqdm
-
+import torch
+import gc
 def run_smolvlm(video_directory,model_name,save_directory,save_name = 'test',captioning_style = 'whole_video',truncation = 5, refine = False):
     all_videos = os.listdir(video_directory)
     video_save_names = [video_name.split('.')[0] for video_name in all_videos]
@@ -34,13 +35,17 @@ def run_smolvlm(video_directory,model_name,save_directory,save_name = 'test',cap
                                json.dump(save_dict,f)
     else:
             raise NotImplementedError
+    del model
+    del processor 
+    torch.cuda.empty_cache()
+    gc.collect()
 
 if __name__ == "__main__":
        video_directory = '/home/aash/Datasets/tvsum'
-       model_name = "Qwen/Qwen3.5-4B"
-       save_directory = 'Captioners'
-       save_name = 'test_tvsum'
-       run_smolvlm(video_directory,model_name,save_directory,save_name)
+       model_name = "Qwen/Qwen3.5-9B"
+       save_directory = 'Captioners/whole_video'
+    #    save_name = 'tvsum_complete_qwen'
+    #    run_smolvlm(video_directory,model_name,save_directory,save_name)
        video_directory = '/home/aash/Datasets/summe'
-       save_name = 'test_summe_2'
+       save_name = 'summe_complete_qwen'
        run_smolvlm(video_directory,model_name,save_directory,save_name)

@@ -77,7 +77,6 @@ def whole_video_encode_and_message(processor,video_path,message,enable_thinking 
     content = [{'type':'video','video':video_path},{'type':'text','text':message}]
     batch_message = [{"role":"user","content":content}]
     if enable_thinking is not None:
-        print("I'm here")
         messages = processor.apply_chat_template(batch_message,
                                                 tokenize=True,
                                                 return_dict=True,
@@ -103,6 +102,5 @@ def forward_and_decode(model,processed_message,input_len,processor,max_new_token
 def forward_and_batch_decode(model,processed_message,input_lens,processor,max_new_tokens = 75):
     with torch.no_grad():
         output_ids = model.generate(**processed_message.to(model.device),max_new_tokens = max_new_tokens)
-    batch_decode = processor.batch_decode(output_ids,skip_special_tokens = True)
-    batch_decode = [decoded_output[input_len:-1] for decoded_output,input_len in zip(batch_decode,input_lens)]
+    batch_decode = [processor.decode(output_ids[i,input_lens[0]:-1],skip_special_tokens = True) for i in range(len(output_ids))]
     return batch_decode

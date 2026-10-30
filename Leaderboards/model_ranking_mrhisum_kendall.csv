@@ -1,0 +1,8 @@
+model_name,eval_type,post_process_type,orig,result
+pgl_sum_average_gt,gt,none,orig,0.13435816764831543
+sl_module_average_gt,gt,none,orig,0.07164198905229568
+vasnet_average_gt,gt,none,orig,0.0696704238653183
+casum_average_gt,gt,none,orig,0.07905584573745728
+mars_average_gt,gt,none,orig,0.14801020920276642
+sumgda_average_gt,gt,none,orig,0.11196768283843994
+sumgda_average_gt,user_summary,none,orig,0.03648725152015686
