@@ -1,10 +1,14 @@
 def refine_caption(processor,generated_captions,processor_kwargs= {}):
-  content = [{'type':'text','text':generated_captions}]
-  new_message = """You are provided with automatically generated captions. 
-  Please refine these captions by removing redundant 
-  information and including all details while ensuring the final description is concise.
-  Remove any special tokens within the captions. Return only the reformulated captions"""
-  content.append({"type":"text","text":new_message})
+  new_message = f"""You are provided with automatically generated captions from a video.
+  Please do the following:
+  Refine the cations: Remove unnecessary formatting details, such as **title cards**.
+  Keep important and relevant details, especially details unique to the description, such as important people, places logos, etc.
+  Remove repeating information and timestamps/timecodes(i.e 00:00,)
+    Keep the final captions concise,reducing each sentence to be 15 words long
+  Rephrase sentences like: "The video shows" into something that describes the scene
+  Return only the rewritten captions
+  Here are the captions you must rewrite: {generated_captions}"""
+  content = [{"type":"text","text":new_message}]
   batch_message = [{"role":"user","content":content}]
   messages = processor.apply_chat_template(batch_message,
                                           tokenize=True,

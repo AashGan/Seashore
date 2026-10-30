@@ -64,9 +64,11 @@ def run_per_annotator_video_caption(base_video_directory,save_directory,save_nam
 if __name__ == "__main__":
        video_directory = '/home/aash/Datasets/tvsum'
        model_name = "HuggingFaceTB/SmolVLM2-2.2B-Instruct"
-       save_directory = 'Captioners'
+       save_directory = 'Captioners/whole_video'
+       save_name = 'tvsum_complete'
+       run_smolvlm(video_directory,model_name,save_directory,save_name)
     #    save_name = 'test_tvsum'
     #    run_smolvlm(video_directory,model_name,save_directory,save_name)
        video_directory = '/home/aash/Datasets/summe'
-       save_name = 'test_summe_2'
+       save_name = 'summe_complete'
        run_smolvlm(video_directory,model_name,save_directory,save_name)

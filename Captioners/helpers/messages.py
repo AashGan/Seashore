@@ -22,4 +22,4 @@ independent_frame_message = "Provide a detailed description of this frame in one
 
 generic_video_message = "Provide a concise and comphresive description of the video in 7 sentences at most. Do no include additional formatting information. Do not use phrases such as: this video contains, or this clip shows."
 
-qwen_message = "Generate a concise description of this video. Do not include any time-stamps. Return the summary as one paragraph"
+qwen_message = "Generate a concise description of this video. Do not include any time-stamps or time information or other details. Return the summary as one paragraph"
