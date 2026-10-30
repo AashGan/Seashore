@@ -24,7 +24,7 @@ def return_multi_objective(h5_obj,dataset,video_index):
         gtscore = gtscore[:,positions]
   return gtscore
 #TODO: adjust this to also adjust when the output is multi-dimensional
-def subsample(features,gt,sampled_frames):
+def subsample(features,gt,sampled_frames,multi_obj = False):
   length = len(features)
   if length > sampled_frames:
     ids = np.random.permutation(length)[:sampled_frames]
@@ -37,7 +37,7 @@ def subsample(features,gt,sampled_frames):
           ids
       ).astype(np.int64)
   features = features[ids]
-  if len(gt.shape)>1:
+  if multi_obj>1:
     gt = gt[:,ids]
   else:
     gt = gt[ids]
@@ -91,7 +91,7 @@ class MultiH5Loader(Dataset):
     if self.shuffler_obj is not None:
       features = self.shuffler_obj(features)
 
-    return {'visual_features':features.astype(np.float32),'gtscore':gtscore.astype(np.float32),'data_point': data_point} # We return the data_name for the eval stuff
+    return {'visual_features':features.astype(np.float32),'gtscore':gtscore.astype(np.float32),'data_points': data_point} # We return the data_name for the eval stuff
 
 
 
@@ -165,15 +165,15 @@ class MultiModalh5Loader(Dataset):
     else:
         gtscore = self.dataset_dict[dataset][video_index]['gtscore'][...]
     output_dict['gtscore'] = gtscore
-    output_dict['data_point'] = data_point
+    output_dict['data_points'] = data_point
     for key in self.included_keys:
       if key =='frame_features':
                output_dict['visual_features'] = self.dataset_dict[dataset][video_index][key][...]
-      if isinstance(self.dataset_dict[dataset][video_index][key][()], bytes):
+      elif isinstance(self.dataset_dict[dataset][video_index][key][()], bytes):
         output_dict[key] = self.dataset_dict[dataset][video_index][key][()].decode("utf-8")
       else:
         output_dict[key] = self.dataset_dict[dataset][video_index][key][...]
-      
+    
     if self.normalize:
        for key in output_dict.keys():
           if key.endswith("_features"):
@@ -182,7 +182,7 @@ class MultiModalh5Loader(Dataset):
     if self.sampled_frames:
           output_dict['visual_features'],output_dict['gtscore'] = subsample(output_dict['frame_features'],
                                                                            output_dict['gtscore'],
-                                                                           self.sampled_frames)
+                                                                           self.sampled_frames,self.multi_obj)
     if self.shuffler_obj is not None:
       output_dict['visual_features'] = self.shuffler_obj(output_dict['visual_features'])
     return output_dict
