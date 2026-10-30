@@ -71,9 +71,7 @@ class InstructionTunerFeatures():
 
     def __call__(self, query):
         final_query = self.system_prompt.append({"role":"user","content":[{"type":"text","text":query}]})
-        if self.embedding_style == "query_output_maxpool":
-            exclusion_length = self._compute_exclusion_length(self.system_prompt)
-        elif self.embedding_style == "output_maxpool":
+        if self.embedding_style == "output_maxpool":
             exclusion_length = None
         final_query = self.processor.apply_chat_template(final_query,tokenize=True,
                 return_tensors="pt",
@@ -83,6 +81,8 @@ class InstructionTunerFeatures():
         with torch.inference_mode():
             generated_output = self.model.generate(**final_query.to(self.model.device), max_new_tokens = self.max_tokens, do_sample=False)
         output_embeddings = generated_output.hidden_state
+        
+
 
 
 
