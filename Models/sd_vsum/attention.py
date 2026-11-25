@@ -53,7 +53,7 @@ class PositionalEncoding(nn.Module):
         :return torch.Tensor: A tensor of shape [n, dim] containing the positional encodings.
         """
         N = x.size(-2)
-        pe = self.pe[:, :N, :].unsqueeze(1)
+        pe = self.pe[:, :N, :]
         # [1, N, D]
         return x + pe
 
@@ -87,43 +87,42 @@ class CrossAttention(nn.Module):
         if self.pos_enc:
             self.pe = PositionalEncoding(self.input_size, max_pos=4096)
 
-    def forward(self, video_features, text_features,video_mask=None,text_mask=None):
+    def forward(self, video_features, text_features, visual_mask = None, text_mask = None):
         """
         Compute multi-head cross-attention between video and text inputs.
 
         :param torch.Tensor video_features: Input video features with shape [N, input_size], where N is the number of frames.
         :param torch.Tensor text_features: Text feature tensor with shape [Scripts, M, text_size], where M is the number of sentences.
         :return torch.Tensor: Output video features with shape [N, input_size] after attention.
-        This has been modified to include batched output for scripts 
+        This has been modified to be batch compatible
         """
-        outputs = []
-        B = 1 # We always assume a batch size of 1
-        N,D = video_features.shape
-        S,M,_ = text_features.shape
-        q = self.Wq(video_features.squeeze())
+         # We always assume a batch size of 1
+        B,N,D_vision = video_features.shape
+        _,M,D_text = text_features.shape
+        q = self.Wq(video_features)
         # [B, N, D]
 
         # Add script dimension.
-        k = self.Wk(text_features.squeeze())
+        k = self.Wk(text_features)
         
-        v = self.Wv(text_features.squeeze())
-       
+        v = self.Wv(text_features)
+        # You'd have to cahnge this to match N 
         q = q.view(
-            B, 1, N, self.num_heads, self.head_dim
-        ).permute(0, 1, 3, 2, 4)
+            B, N, self.num_heads, self.head_dim
+        ).permute(0, 2, 1, 3)
+         # You'd have to cahnge this to match N 
         k = k.view(
-            B, S, M, self.num_heads, self.head_dim
-        ).permute(0, 1, 3, 2, 4)
+            B,M , self.num_heads, self.head_dim
+        ).permute(0, 2, 1, 3)
         v = v.view(
-            B, S, M, self.num_heads, self.head_dim
-        ).permute(0, 1, 3, 2, 4)
+            B, M , self.num_heads, self.head_dim
+        ).permute(0, 2, 1, 3)
 
         scores = torch.matmul(q,k.transpose(-2, -1))
       
         scores = scores / math.sqrt(self.head_dim)
         if text_mask is not None:
-          mask = text_mask.unsqueeze(2).unsqueeze(2)
-
+          mask = text_mask[:,None,None,:]
           scores = scores.masked_fill(
               ~mask,
               -1e9
@@ -136,14 +135,16 @@ class CrossAttention(nn.Module):
             v
         )
         output = output.permute(
-            0, 1, 3, 2, 4
+            0, 2, 1, 3
         )
         output = output.reshape(
             B,
-            S,
             N,
-            D
+            D_vision
         )
+        if visual_mask is not None:
+            output = output.masked_fill(~visual_mask.unsqueeze(-1),0.0)
+
         if self.pos_enc:
             y= self.pe(output)
         return y

@@ -15,6 +15,7 @@ if __name__ == "__main__":
     directory = 'Configs/model_configs/sl_module'
     if not os.path.exists(directory):
         os.makedirs(directory,exist_ok=True)
-    save_name = 'sl_module_tvsum.json'
+    dataset = 'summe'
+    save_name = f'sl_module_{dataset}.json'
     save_path = os.path.join(directory,save_name)
     generate_json(save_path)

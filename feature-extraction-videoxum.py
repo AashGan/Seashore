@@ -108,20 +108,19 @@ def run_feature_extractor_base(video_base_path,save_name):
             else:
                 raise "Error, no file found"
             features,_ = torch_extract(video_path)
-            if len(features)>metadata_file[video]['user_summary'][...].shape[1]:
-                features = features[:len(metadata_file[video]['user_summary'][...].shape[1])]
-
+            if len(features)>metadata_file[video]['gtscore_xum'][...].shape[1]:
+                features = features[:metadata_file[video]['gtscore_xum'][...].shape[1]]
+            assert len(features) == len(metadata_file[video]['gtscore'][...])
             shot_bounds = metadata_file[video]['shot_bounds'][...] # TODO: Mathieu, adding another source for shot boundaries here could be nice
             n_frames = metadata_file[video]['n_frames'][()]
             user_summary = metadata_file[video]['user_summary'][...]
-            f.create_dataset(f'{video}/features',data=features)
+            f.create_dataset(f'{video}/frame_features',data=features)
             f.create_dataset(f'{video}/gtscore',data=metadata_file[video]['gtscore'][...])
             f.create_dataset(f'{video}/gtscore_xum',data=metadata_file[video]['gtscore_xum'][...])
             f.create_dataset(f'{video}/shot_bounds',data=shot_bounds)
             f.create_dataset(f'{video}/n_frames',data=n_frames)
             f.create_dataset(f'{video}/positions',data=metadata_file[video]['positions'][...])
             f.create_dataset(f'{video}/user_summary',data=user_summary)
-            f.create_dataset(f'{video}/user_score',data=metadata_file[video]['user_score'][...])
             f.create_dataset(f'{video}/text_summary',data=metadata_file[video]['text_summary'][:])
             f.create_dataset(f'{video}/vsum_time_stamps',data=metadata_file[video]['vsum_time_stamps'][...])
             f.create_dataset(f'{video}/activitynet_video_id',data=metadata_file[video]['activitynet_video_id'][()])
@@ -150,12 +149,12 @@ def run_feature_extractor_hf(video_base_path,save_name):
             else:
                 raise "Error, no file found"
             features,positions = torch_extract(video_path)
-            if len(features)>metadata_file[video]['user_summary'][...].shape[1]:
-                features = features[:len(metadata_file[video]['user_summary'][...].shape[1])]
+            if len(features)>metadata_file[video]['gtscore_xum'][...].shape[1]:
+                features = features[:len(metadata_file[video]['gtscore_xum'][...].shape[1])]
             shot_bounds = metadata_file[video]['shot_bounds'][...] # TODO: Mathieu, adding another source for shot boundaries here could be nice
             n_frames = metadata_file[video]['n_frames'][()]
             user_summary = metadata_file[video]['user_summary'][...]
-            f.create_dataset(f'{video}/features',data=features)
+            f.create_dataset(f'{video}/frame_features',data=features)
             f.create_dataset(f'{video}/gtscore',data=metadata_file[video]['gtscore'][...])
             f.create_dataset(f'{video}/gtscore_xum',data=metadata_file[video]['gtscore_xum'][...])
             f.create_dataset(f'{video}/shot_bounds',data=shot_bounds)
@@ -169,7 +168,7 @@ def run_feature_extractor_hf(video_base_path,save_name):
 
 
 if __name__ == "__main__":
-    generate_metadata_h5()
+    #generate_metadata_h5()
     # #run_feature_extractor_hf(data_source,"siglip2_videoxum")
-    # #run_feature_extractor_base(data_source,"resnet_videoxum")
+    run_feature_extractor_base(data_source,"resnet_videoxum")
     # run_feature_extractor_hf(data_source,"clip_videoxum")

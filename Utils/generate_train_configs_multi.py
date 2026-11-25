@@ -7,18 +7,18 @@ import json
 def generate_json(config_path,model_name,dataset,split_type):
     data_configs= {
         'batch_size':15,
-        'collate_type':'batch_text_sum_multi',
+        'collate_type':'visual_text_feat',
         'lr':1e-5,
         'epochs':30,
         'shuffle_params': {},
         'loader_config': {'name':'multimodal_loader',
-                          'params':{'split_file':'Splits/script_videoxum_split_reduced_fixed.json','included_keys':['frame_features','text_summary'],
-                                    'multi_obj':True,'file_name':'blip'}}
+                          'params':{'split_file':'Splits/tvsum_can_1.json','included_keys':['frame_features','text_features'],
+                                    'multi_obj':True,'file_name':'siglip2_multimodal'}}
     }
     eval_configs  = {
     
         'eval_type':{dataset:'gtscore'},
-        'post_process_dict':{'mrhisum':'none'},
+        'post_process_dict':{dataset:'none'},
         'eval_criterion': 'corr',
         'log_metric':'kendall',
         'eval_dataset': dataset,
@@ -40,6 +40,8 @@ def generate_json(config_path,model_name,dataset,split_type):
 
 
 if __name__ == "__main__":
-    model_name = 'vtsum_blip_tt_ca'
-    config_path = f'Configs/train_{model_name}_videoxum_can.json'
-    generate_json(config_path,model_name)
+    model_name = 'sd_vsum'
+    dataset = 'mrhisum'
+    split_type = 'orig'
+    config_path = f'Configs/train_{model_name}_{dataset}_{split_type}.json'
+    generate_json(config_path,model_name,dataset,split_type)
