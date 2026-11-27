@@ -28,7 +28,7 @@ def ctv_functional(frame_features,use_unif=True):
     return scores*lunif
   return scores
 
-def ctv_loss_model_train(frame_features,proj,scores):
+def ctv_loss_model_train(frame_features,proj,scores,s=20):
   norm_raw = F.normalize(frame_features,p=2,dim=-1)
   xy_raw = torch.einsum('bmc, bnc -> bmn', norm_raw, norm_raw)
   norm_proj = F.normalize(proj,p=2,dim=-1)
@@ -41,7 +41,6 @@ def ctv_loss_model_train(frame_features,proj,scores):
   pos = torch.gather(diff_mat, -1, sort_ids[:,:,S:S+K1])
   laln = pos.mean(dim=-1)
   lunif = diff_mat.mul(-2).exp().mean(dim=-1).log()
-  s = 20
   seg = rearrange(proj, 'b (s l) c -> (b s) l c', s=s)
   seg_feats = F.normalize(seg.mean(dim=1), dim=1) # (b s) c
   fv_xy = torch.einsum("bmc, nc -> bmn", norm_proj, seg_feats) # b m (b s)

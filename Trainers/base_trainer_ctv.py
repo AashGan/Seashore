@@ -10,13 +10,15 @@ from .base_trainer import MetadataStore
 from collections.abc import Callable
 from scipy.ndimage import gaussian_filter1d
 import numpy as np
-
+from Models.ctv.ctv_utils import ctv_loss_model_train,ctv_loss_model_pred
 class BaseTrainerCTV(pl.LightningModule):
     """
     A CTV Style Video Summarizer 
     """
     def __init__(self,model:nn.Module,datasets:list|dict, eval_type:dict[str],
-                 post_process_dict:dict[str],pred_criterion, use_unif,use_unq = False,alpha = 0.5,ratio_s =0 ,ratio_k1 = 0.1 , lr:float=1e-5,criterion:Callable = F.mse_loss,
+                 post_process_dict:dict[str],criterion:Callable = ctv_loss_model_train,
+                 pred_criterion=ctv_loss_model_pred,train_div = 20, use_unif=True,use_unq = False,
+                 alpha = 0.5,ratio_s =0 ,ratio_k1 = 0.1 , lr:float=1e-5,
                  eval_criterion='corr'):
         super().__init__()
         self.model = model
@@ -28,6 +30,7 @@ class BaseTrainerCTV(pl.LightningModule):
         self.criterion = criterion
         self.pred_criterion = pred_criterion
         self.lr = lr
+        self.train_div = train_div
         self.ratio_s = ratio_s
         self.ratio_k1 = ratio_k1 
         self.use_unq = use_unq
@@ -36,11 +39,14 @@ class BaseTrainerCTV(pl.LightningModule):
     def training_step(self,batch,batch_idx):
         x, _ = batch['features'] ,  batch['gtscore']
         proj, y_preds = self.model(x)
-        laln, lunif, lunif_fv, lunq = self.criterion(x,proj,y_preds,self.ratio_s,self.ratio_k1)
+        laln, lunif, lunif_fv, lunq = self.criterion(x,proj,y_preds,self.ratio_s,self.ratio_k1,s=self.train_div)
 
         if self.use_unq:
-            return laln.mean() + self.alpha * lunif.mean()  + 0.1 * lunif_fv.mean() + 0.1 * lunq
-        return laln.mean() +self.alpha*lunif.mean()
+            total_loss =  laln.mean() + self.alpha * lunif.mean()  + 0.1 * lunif_fv.mean() + 0.1 * lunq
+        else:
+            total_loss = laln.mean() +self.alpha*lunif.mean()
+        self.log('train_loss', total_loss,prog_bar = True,)  
+        return total_loss
 
     def validation_step(self, batch, batch_idx):
         x, y, video_key = batch['features'] ,  batch['gtscore'],batch['data_points']
@@ -49,6 +55,10 @@ class BaseTrainerCTV(pl.LightningModule):
         dataset,video_index = video_key[0].split('/')
         y_output = BaseTrainerCTV.post_process_ctv(y_output,dataset)
         metadata = self.metadata_stores.get(dataset,video_index)
+        dataloader = self.trainer.val_dataloaders
+        dataset_obj = dataloader.dataset
+        positions = dataset_obj.get_positions(dataset,video_index)
+        metadata['positions'] = positions
         ground_truth_data = self.metadata_stores.get_gt(dataset,video_index)
         eval_type = self.eval_type[dataset]
         post_process = self.post_process_dict[dataset]
